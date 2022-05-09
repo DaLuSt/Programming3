@@ -21,15 +21,33 @@ Entrez.api_key = api_key
 
 pmid = "35512704"
 
-# Download the XML data for the article with the given PubMed ID.
-def get_xml_data(pmid):
+# get refrences from a starter paper pubmed id paper
+import sys
+from Bio import Entrez as ez
+ez.email = "your@emailhere.com"
+def get_citations(pmid):
+    """
+    Returns the pmids of the papers this paper cites
+    """
+    cites_list = []
+    handle = ez.efetch("pubmed", id=pmid, retmode="xml")
+    pubmed_rec = ez.parse(handle).next()
+    for ref in pubmed_rec['MedlineCitation']['CommentsCorrectionsList']:
+        if ref.attributes['RefType'] == 'Cites':
+            cites_list.append(str(ref['PMID']))
+    return cites_list
+
+if __name__ == '__main__':
+    z = get_citations(sys.argv[1])
+    for i in z:
+        print i
     
 
-# get 10 articles refrences to the given article
-def get_refrences(pmid):
 
-# download the 10 articles
-def download_refrenced_articles(pmid):
+# download the top 10 papers from the articles.
+
+
+
     
     
 
