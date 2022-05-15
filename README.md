@@ -3,7 +3,7 @@ Data science for life sciences programming 3 course, weekly assignments and fina
 
 # This repository contains
 
-- week 1 assignment (download pmkd as xml)
+- week 1 assignment (download pmid citations as xml)
 - week 2 assignment
 - week 3 assignment
 - week 4 assignment
