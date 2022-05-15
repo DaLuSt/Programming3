@@ -4,7 +4,6 @@ import time
 import sys
 import os
 
-
 def get_citations(pmid):
     Entrez.email = "dalust1997@gmail.com"
     results = Entrez.read(Entrez.elink(dbfrom="pubmed",
