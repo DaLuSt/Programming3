@@ -10,39 +10,34 @@
 # The only command-line argument you need is a query (PubMed ID) to ask Entrez about an article.
 # Your script should then download 10 articles cited by this one _concurrently_ using the multiprocessing.Pool() and map() constructs! The articles should be saved as PUBMED_ID.xml in the directory "output" in the directory your script is run from.
 
-
 from Bio import Entrez
-from Bio import Medline
-
-api_key = "5465528a46551838834940b5006829e8e307"
-Entrez.api_key = api_key
-
-pmid = "35512704"
-
-# get refrences from a starter paper pubmed id paper
 import sys
-from Bio import Entrez as ez
-ez.email = "your@emailhere.com"
+
 def get_citations(pmid):
-    """
-    Returns the pmids of the papers this paper cites
-    """
-    cites_list = []
-    handle = ez.efetch("pubmed", id=pmid, retmode="xml")
-    pubmed_rec = ez.parse(handle).next()
-    for ref in pubmed_rec['MedlineCitation']['CommentsCorrectionsList']:
-        if ref.attributes['RefType'] == 'Cites':
-            cites_list.append(str(ref['PMID']))
-    return cites_list
+    Entrez.email = "dalust1997@gmail.com"
+    results = Entrez.read(Entrez.elink(dbfrom="pubmed",
+                                    db="pmc",
+                                    LinkName="pubmed_pmc_refs",
+                                    id=pmid,
+                                    api_key='5465528a46551838834940b5006829e8e307'))
+    references = [f'{link["Id"]}' for link in results[0]["LinkSetDb"][0]["Link"]]
+    references = references[:10]
+    return references
+
+
+def download_pmids(pmid):
+    pmids = list(get_citations(pmid))
+    for pmid in pmids:
+        handle = Entrez.efetch(db="pmc", id=pmid, rettype="XML", retmode="text",
+                               api_key='5465528a46551838834940b5006829e8e307')
+    
+        with open(f'output/{pmid}.xml', 'wb') as file:
+            file.write(handle.read())
 
 if __name__ == '__main__':
-    z = get_citations(sys.argv[1])
-    for i in z:
-        print i
-    
+    pmid = sys.argv[1]
+    download_pmids(pmid)
 
-
-# download the top 10 papers from the articles.
 
 
 
