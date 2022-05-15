@@ -4,9 +4,7 @@
 # See: New API keys Rate-limit your script to below the required requests per second using time.sleep() if necessary.
 # (May require some experimentation.)
 
-
 # A script that downloads 10 articles from PubMed using the Biopython API.
-
 
 # Your script needs to be called "assignment1.py" in the "Assignment1" folder of your "Programming2" Bitbucket repo.
 # The only command-line argument you need is a query (PubMed ID) to ask Entrez about an article.
