@@ -6,9 +6,9 @@ You will need to use the Biopython Querying facilities (see: Chapter 9 Biopython
 
 ### 1,2. getting started
 The only command-line argument you need is a query PubMed ID to ask Entrez about an article. the script can be called as follows:
-
--python3 assignment1.py pubmed_id-
-
+```
+python assignment1.py pubmed_id
+```
 ### 1.3. Output
 The script script will run, given a valid Pubmed id, and will return a folder called output with the first 10 citations of the input Pubmed id.
 
