@@ -1,17 +1,9 @@
-# The goal of this assignment is to get used to programmatically querying NCBI.
-# You will need to use the Biopython Querying facilities (see: Chapter 9 Biopython Tutorial) to download the XML data for 10 articles.
-# NB: To do this succesfully, be sure to make an NCBI account and set up API tokens!
-# See: New API keys Rate-limit your script to below the required requests per second using time.sleep() if necessary.
-# (May require some experimentation.)
-
-# A script that downloads 10 articles from PubMed using the Biopython API.
-
-# Your script needs to be called "assignment1.py" in the "Assignment1" folder of your "Programming2" Bitbucket repo.
-# The only command-line argument you need is a query (PubMed ID) to ask Entrez about an article.
-# Your script should then download 10 articles cited by this one _concurrently_ using the multiprocessing.Pool() and map() constructs! The articles should be saved as PUBMED_ID.xml in the directory "output" in the directory your script is run from.
-
+import multiprocessing
 from Bio import Entrez
+import time
 import sys
+import os
+
 
 def get_citations(pmid):
     Entrez.email = "dalust1997@gmail.com"
@@ -24,6 +16,9 @@ def get_citations(pmid):
     references = references[:10]
     return references
 
+def create_dir(dir_name):
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
 
 def download_pmids(pmid):
     pmids = list(get_citations(pmid))
@@ -33,10 +28,24 @@ def download_pmids(pmid):
     
         with open(f'output/{pmid}.xml', 'wb') as file:
             file.write(handle.read())
-
-if __name__ == '__main__':
+            
+def main():
+    create_dir('output')
     pmid = sys.argv[1]
     download_pmids(pmid)
+
+if __name__ == '__main__':
+    start = time.perf_counter()
+    main()
+    end = time.perf_counter()
+    print(f'Normal finished in {round(end-start, 2)} second(s)')
+    
+    start = time.perf_counter()
+    process = multiprocessing.Process(target=main)
+    process.start()
+    end = time.perf_counter()
+    print(f'Multi finished in {round(end-start, 2)} second(s)') 
+    print('Completed download')
 
 
 
