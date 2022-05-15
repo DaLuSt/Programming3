@@ -58,27 +58,3 @@ if __name__ == '__main__':
     end = time.perf_counter()
     print(f'Multi finished in {round(end-start, 2)} second(s)') 
     print('Completed download')
-
-
-
-
-    
-    
-
-
-
-
-    
-    
-    
-    
-    
-
-
-
-
-
-
-    
-    
-
