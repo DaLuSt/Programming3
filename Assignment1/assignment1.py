@@ -47,10 +47,10 @@ def main():
 
 
 if __name__ == '__main__':
-    start = time.perf_counter()
-    main()
-    end = time.perf_counter()
-    print(f'Normal finished in {round(end-start, 2)} second(s)')
+    # start = time.perf_counter()
+    # main()
+    # end = time.perf_counter()
+    # print(f'Normal finished in {round(end-start, 2)} second(s)')
     
     start = time.perf_counter()
     process = multiprocessing.Process(target=main)
