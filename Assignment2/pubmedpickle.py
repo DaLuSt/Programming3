@@ -26,8 +26,8 @@ class pubmedpickle():
 
     def create_dir(self):
         try:
-            if not os.path.exists(self):
-                os.makedirs(self)
+            if not os.path.exists('output'):
+                os.makedirs('output')
         except OSError:
             print(f'Error: Creating directory. {self}')
 
@@ -36,7 +36,6 @@ class pubmedpickle():
             pmids = list(pubmedpickle.get_citations(self))
             for self in pmids:
                 handle = Entrez.efetch(db="pmc", id=self, rettype="XML", retmode="text", api_key='5465528a46551838834940b5006829e8e307')
-
 
                 with open(f'output/{self}.xml', 'wb') as file:
                     file.write(handle.read())
@@ -78,8 +77,8 @@ class pubmedpickle():
 #     # 30049270
     
 #     start = time.perf_counter()
-#     process = multiprocessing.Process(target=pubmedpickle.main)
+#     process = multiprocessing.Process(target=pubmedpickle.main())
 #     process.start()
 #     end = time.perf_counter()
-#     print(f'Multi finished in {round(end-start, 2)} second(s)') 
+#     print(f'finished in {round(end-start, 2)} second(s)') 
 #     print('Process completed')

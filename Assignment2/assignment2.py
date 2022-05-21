@@ -7,11 +7,10 @@ Author: Daan Steur
 import multiprocessing as mp
 from multiprocessing.managers import BaseManager, SyncManager
 import os, sys, time, queue
-import pubmedpickle as pp
-
+from pubmedpickle import *
 
 class PubmedManager():
-    
+
     def __init__(self, port, authkey, ip):
         self.port = port
         self.authkey = authkey
@@ -138,21 +137,32 @@ class PubmedManager():
         """Capitalizes the word you pass in and returns it"""
         return self.upper()
 
-POISONPILL = "MEMENTOMORI"
-ERROR = "DOH"
-IP = ''
-PORTNUM = 5381
-AUTHKEY = b'whathasitgotinitspocketsesss?'
-data = 30049270
-data = ["Always", "look", "on", "the", "bright", "side", "of", "life!"]
+if __name__ == "__main__":
+    
+    IP = ''
+    PORTNUM = 5381
+    AUTHKEY = b'whathasitgotinitspocketsesss?'
+    pmid = "30049270"
+    
 
+#     # 30049270
 
-server = mp.Process(target=PubmedManager.runserver, args=(pp.write_pickle, data))
-server.start()
-time.sleep(1)
-client = mp.Process(target=PubmedManager.runclient, args=(4,))
-client.start()
-server.join()
-client.join()
+    start = time.perf_counter()
+    process = multiprocessing.Process(target=pubmedpickle.main())
+    process.start()
+    end = time.perf_counter()
+    print(f'finished in {round(end-start, 2)} second(s)') 
+    print('Process completed')
+
+    # main_pmid = pubmedpickle(pmid)
+
+    server_start = PubmedManager(PORTNUM,AUTHKEY,IP)
+    server = mp.Process(target=server_start.runserver, args=(pubmedpickle.main(), pmid))
+    server.start()
+    time.sleep(1)
+    client = mp.Process(target=server_start.runclient, args=(4,))
+    client.start()
+    server.join()
+    client.join()
 
 
