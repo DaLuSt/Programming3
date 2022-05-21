@@ -9,14 +9,14 @@ from multiprocessing.managers import BaseManager, SyncManager
 import os, sys, time, queue
 from pubmedpickle import *
 
-class PubmedManager():
+class PubmedManager:
 
     def __init__(self, port, authkey, ip):
         self.port = port
         self.authkey = authkey
         self.ip = ip
-        self.stopsign = "stoprighthere"
-        self.error = "theresanerror"
+        self.stopsign = "STOP"
+        self.error = "ERROR"
 
     def make_server_manager(self):
         """ Create a manager for the server, listening on the given port.
@@ -136,28 +136,18 @@ class PubmedManager():
     def capitalize(self):
         """Capitalizes the word you pass in and returns it"""
         return self.upper()
-
+    
 if __name__ == "__main__":
-    
-    IP = ''
-    PORTNUM = 5381
+    IP = '185.12.219.103'
+    PORTNUM = 45263
     AUTHKEY = b'whathasitgotinitspocketsesss?'
+    # input_args = Interface()
     pmid = "30049270"
-    
-
-#     # 30049270
-
-    start = time.perf_counter()
-    process = multiprocessing.Process(target=pubmedpickle.main())
-    process.start()
-    end = time.perf_counter()
-    print(f'finished in {round(end-start, 2)} second(s)') 
-    print('Process completed')
-
-    # main_pmid = pubmedpickle(pmid)
+    main_pmid = pubmedpickle.main(pmid)
+    ref_ids = main_pmid.ncbi_query()
 
     server_start = PubmedManager(PORTNUM,AUTHKEY,IP)
-    server = mp.Process(target=server_start.runserver, args=(pubmedpickle.main(), pmid))
+    server = mp.Process(target=server_start.runserver, args=(pubmedpickle.main(), ref_ids))
     server.start()
     time.sleep(1)
     client = mp.Process(target=server_start.runclient, args=(4,))
