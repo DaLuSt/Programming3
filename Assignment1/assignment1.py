@@ -1,8 +1,7 @@
 import multiprocessing
 from Bio import Entrez
-import time
-import sys
-import os
+import time, sys, os
+
 
 def get_citations(pmid):
     try:
@@ -36,7 +35,7 @@ def download_pmids(pmid):
                 file.write(handle.read())
     except Exception:
         print('Error: Downloading PMIDs.')
-            
+        
 def main():
     try:
         pmid = sys.argv[1]
@@ -47,11 +46,7 @@ def main():
 
 
 if __name__ == '__main__':
-    # start = time.perf_counter()
-    # main()
-    # end = time.perf_counter()
-    # print(f'Normal finished in {round(end-start, 2)} second(s)')
-    
+    # 30049270
     start = time.perf_counter()
     process = multiprocessing.Process(target=main)
     process.start()
