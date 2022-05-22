@@ -3,10 +3,10 @@ Assignment 2 Programming 3
 Data Sciences for Life Sciences
 Author: Daan Steur
 """
-
 import multiprocessing as mp
 from multiprocessing.managers import BaseManager, SyncManager
 import os, sys, time, queue
+import argparse as ap
 from pubmedpickle import *
 
 class PubmedManager:
@@ -137,22 +137,47 @@ class PubmedManager:
         """Capitalizes the word you pass in and returns it"""
         return self.upper()
     
-if __name__ == "__main__":
-    IP = '185.12.219.103'
-    PORTNUM = 45263
+if __name__ == '__main__':
+    #set up argparser to catch input from command line
+    argparser = ap.ArgumentParser(
+                                description="Script that saves the authors of refernced articles by the given PubMed ID article")
+    argparser.add_argument("STARTING_PUBMED_ID", action="store", nargs=1,  type = str, default=10,
+                            help="Pubmed id to get references")
+    argparser.add_argument("-n", action="store", type=int, dest = "n",
+                            help="Number of peons for each client")
+    argparser.add_argument("-a", action="store", type=int, dest = "a",
+                             help="Number of articles from which to get the authorlist")
+    argparser.add_argument("--port", action="store", type=int,dest = "port", help="the port")
+    argparser.add_argument("--host", action="store", type=str,dest = "host", help="the host")
+    group = argparser.add_mutually_exclusive_group()
+    group.add_argument('-c', action='store_true',  dest="c")
+    group.add_argument('-s', action='store_true',  dest="s")
+    args = argparser.parse_args()
+    print("Getting: ", args.STARTING_PUBMED_ID)
+    pmid = args.STARTING_PUBMED_ID
+    port = args.port
+    host = args.host
+    n = args.n
+    a = args.a
+
+    POISONPILL = "MEMENTOMORI"
+    ERROR = "DOH"
+    IP = host
+    PORTNUM = port
     AUTHKEY = b'whathasitgotinitspocketsesss?'
-    # input_args = Interface()
-    pmid = "30049270"
-    main_pmid = pubmedpickle.main(pmid)
-    ref_ids = main_pmid.ncbi_query()
 
-    server_start = PubmedManager(PORTNUM,AUTHKEY,IP)
-    server = mp.Process(target=server_start.runserver, args=(pubmedpickle.main(), ref_ids))
-    server.start()
-    time.sleep(1)
-    client = mp.Process(target=server_start.runclient, args=(4,))
-    client.start()
-    server.join()
-    client.join()
+    #get references
+    references = pubmedpickle.get_citations(pmid)
+    #call the function to get the authors from
+    #references and index with a(number of authors to extract)
+    if args.s:
+        server = mp.Process(target=PubmedManager.runserver, args=(pubmedpickle.main, references[:a]))
+        server.start()
+        time.sleep(1)
+        server.join()
 
+    if args.c:
+        client = mp.Process(target=PubmedManager.runclient, args=(n, ))
+        client.start()
+        client.join()
 
