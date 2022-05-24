@@ -11,9 +11,7 @@ Author: Daan Steur
 # A function called "reducer" which takes (outkey, intermediatevalue) tuples.
 
 
-class MapReduce:
-    
-    def __init__(self):
+
         
         
     
