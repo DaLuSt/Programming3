@@ -69,6 +69,7 @@ class pubmedpickle():
         try:
             pmid = sys.argv[1]
             pubmedpickle.create_dir('output')
+            pubmedpickle.download_pmids(pmid)
             pubmedpickle.write_pickle(pmid)
         except Exception:
             print('Error: Main function.')
