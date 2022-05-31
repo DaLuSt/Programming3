@@ -12,6 +12,9 @@ data = pd.read_csv('timings.txt', sep="", header=None)
 y = data.time
 x = np.linspace(1, 17)
 plt.plot(x, y)
+plt.xlabel('Number of threads')
+plt.ylabel('Time (s)')
+plt.title('Time taken to run the program')
 
 # load timings.txt
 # export timings.png
