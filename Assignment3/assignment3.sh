@@ -3,7 +3,7 @@
 #SBATCH --time 7:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=16
-#SBATCH --job-name=BlastpPeterFinal
+#SBATCH --job-name=BlastpDLS
 #SBATCH --partition=assemblix
 
 mkdir -p output
