@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 data = pd.read_csv(
-    "/homes/pcriesebos/Documents/programming3/Assignment3/output/timings.txt",
+    "/homes/dlsteur/Git_repos/programming3/Assignment3/output/timings.txt",
     sep="\t",
     lineterminator="\n",
     header=None,
