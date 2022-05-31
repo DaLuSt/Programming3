@@ -9,3 +9,6 @@ Your assignment is to run the program with -num_threads values from 1 to 16 and 
 export BLASTDB=/local-fs/datasets/
 blastp -query MCRA.faa -db refseq_protein/refseq_protein -num_threads 1 -outfmt 6 >> blastoutput.txt
 The output should be a file called timings.txt and a PNG format matplotlib graph showing number-of-threads on the x axis and time-taken (s) on the y axis, called timings.png. (Note: so you need to run a small python script as well to generate the graph).
+
+#### Run
+sbatch assignment3.sh
