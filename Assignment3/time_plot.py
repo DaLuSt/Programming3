@@ -21,22 +21,4 @@ plt.xlabel("Number of threads")
 plt.ylabel("Time taken (s)")
 plt.savefig("output/timings.png")
         
-        
-    
-
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # command line assignment3.py –hosts <list of hosts, first is server> [-s | -c] -n cores -p port -d jobsdirectory -r <retries> 
