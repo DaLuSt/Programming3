@@ -42,41 +42,20 @@ def calculate_N50(list_of_lengths):
             median = (tmp[len(tmp) // 2 - 1] + tmp[len(tmp) // 2]) / 2
         else:
             median = tmp[len(tmp) // 2]
-        return print(median)
+        return median
     except Exception:
         print("Error in N50 calculation")
-
-lengths = contig_parser(fileinput)
-calculate_N50(lengths)
-# fasta parser 
-
-dna = []
-sequences = []
 
 def read_fasta(filename):
     global seq, header, dna, sequences 
 
-#open the file  
-    with open(filename) as file:    
-        seq = ''        
-        #forloop through the lines
-        for line in file: 
-            header = re.search(r'^>\w+', line)
-            #if line contains the header '>' then append it to the dna list 
-            if header:
-                line = line.rstrip("\n")
-                dna.append(line)            
-            # in the else statement is where I have problems, what I would like is
-            #else: 
-                #the proceeding lines before the next '>' is the sequence for each header,
-                #concatenate these lines into one string and append to the sequences list 
-            else:               
-                seq = line.replace('\n', '')  
-                sequences.append(seq)      
-
-filename = 'gc.txt'
-
-# read_fasta(filename)
+if __name__ == "__main__":
+    input = sys.stdin
+    # print(calculate_N50(contig_parser(input)))
+    output = sys.stdout
+    N50 = str(calculate_N50(contig_parser(input)))
+    output.write(f'N50:{N50}, \n')
+    # # print(calculate_N50(lenghts))
 
 
 
