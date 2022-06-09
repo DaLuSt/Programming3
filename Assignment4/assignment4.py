@@ -19,15 +19,14 @@ def contig_parser(input_stdin):
     seq_list_higher = []
     seq_list_tmp = []
 
-    for n in range(len(seq_list_raw)):    
-        if not seq_list_raw[n].startswith('>'):
-            seq_list_tmp.append(seq_list_raw[n])
+    for item in seq_list_raw:
+        if not item.startswith('>'):
+            seq_list_tmp.append(item)
         else:
             seq_list_higher.append(seq_list_tmp)
             seq_list_tmp = []
-    
-    seq_list_lengths = [len("".join(lst)) for lst in seq_list_higher]
-    return seq_list_lengths
+
+    return [len("".join(lst)) for lst in seq_list_higher]
 
 
 def calculate_N50(lengths_list):
@@ -40,12 +39,7 @@ def calculate_N50(lengths_list):
     for tmp_number in set(lengths_list):
             tmp += [tmp_number] * lengths_list.count(tmp_number) * tmp_number
     tmp.sort()
-    if (len(tmp) % 2) == 0:
-        median = (tmp[int(len(tmp) / 2) - 1] + tmp[int(len(tmp) / 2)]) / 2
-    else:
-        median = tmp[int(len(tmp) / 2)]
- 
-    return median
+    return (tmp[len(tmp) // 2 - 1] + tmp[len(tmp) // 2]) / 2 if (len(tmp) % 2) == 0 else tmp[len(tmp) // 2]
 
 
 if __name__ == "__main__":
