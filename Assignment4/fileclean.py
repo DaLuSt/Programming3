@@ -20,7 +20,7 @@ def copy_file(src, dst):
 if __name__ == "__main__":
     print(get_kmer('output/output.csv'))
     best_k = get_kmer('output/output.csv')
-    best_k_path = f'/students/2021-2022/master/Martin_DSLS/output/{best_k}/contigs.fa'
+    best_k_path = f'/students/2021-2022/master/DaanSteur_DSLS/output/{best_k}/contigs.fa'
     output_path = 'output/contigs.fa'
     print('file copy complete')
     copy_file(best_k_path, output_path)
