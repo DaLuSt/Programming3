@@ -1,16 +1,14 @@
 """
 Assignment 4 Programming 4
+Check SeqIO for parsing .fa files and calculating the N50
 Data Sciences for Life Sciences
 Author: Daan Steur
 Date:08/06/2022
 """
 
 #!/usr/bin/python
-
-# Check SeqIO for parsing .fa files and calculating the N50
-
 from Bio import SeqIO
-import sys, os, re
+import sys
 
 fileinput = '/homes/dlsteur/Git_repos/programming3/Assignment4/output_dir/contigs.fa'
 
