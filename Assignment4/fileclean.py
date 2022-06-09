@@ -1,26 +1,24 @@
 
 import pandas as pd
-import shutil
 
-def get_kmer(file):
-    try:
-        out = pd.read_csv(file, names=['N50', 'Kmer_size'], header=None)
-        best_kmer = out.sort_values('N50', ascending=False).iloc[0, 1]
-        return best_kmer
-    except Exception:
-        print("Error: Input file is not in csv format.")
+def get_best(file):
+    data = pd.read_csv(file, sep=':', header=None)
+    data.rename(columns={0:'name', 1:'value'}, inplace=True)
 
-def copy_file(src, dst):
-    try:
-        shutil.copyfile(src, dst)
-    except Exception:
-        print("Error: Input file is not in the correct format.")
+    # get all rows with n50 string
+    n50 = data.loc[data['name'].str.contains('N50')]
+    n50 = n50.value
+    n50 = n50.max()
 
+    # get the kmer size
+    kmer = data.loc[data['name'].str.contains('Kmer_size')]
+    kmer = kmer.value
+    kmer = kmer.max()
+
+    # create dataframe with n50 and kmer size
+    data = pd.DataFrame({'n50': [n50], 'kmer': [kmer]})
+    data.to_csv('output/best_kmer.csv', index=False)
+    print(f"best kmer is: {kmer} and best n50 is: {n50}")
 
 if __name__ == "__main__":
-    print(get_kmer('output/output.csv'))
-    best_k = get_kmer('output/output.csv')
-    best_k_path = f'/students/2021-2022/master/DaanSteur_DSLS/output/{best_k}/contigs.fa'
-    output_path = 'output/contigs.fa'
-    print('file copy complete')
-    copy_file(best_k_path, output_path)
+    get_best('output/output.csv')
