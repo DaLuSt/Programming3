@@ -20,4 +20,4 @@ Your output should be a CSV file with 3 columns;
 3. in the third column the output of the scheduler's physical plan (using the `.explain()` PySpark method) as a string
 
 #### Run code
-
+run assignment5.py
