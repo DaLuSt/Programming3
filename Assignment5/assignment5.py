@@ -11,6 +11,8 @@ from pyspark import SparkFiles
 from pyspark import SparkContext
 from pyspark.sql import Row
 from pyspark.sql import SQLContext
+import pandas as pd
+import os, sys
 
 
 def spark_df(path):
@@ -45,6 +47,8 @@ class InspectInterPRO:
 
     def unique_pro_annots(self):
         return self.df.select('interPRO_accession').distinct().count()
+        
+
 # 1. How many distinct protein annotations are found in the dataset? I.e. how many distinc InterPRO numbers are there?
 # df[column].unique()
 
@@ -53,7 +57,7 @@ class InspectInterPRO:
 
 # 2. How many annotations does a protein have on average?
 # df[column].mean()
-        pass
+        return self.df["protein_accession"].mean()
 
 
     def max_go_term(self):
@@ -114,6 +118,28 @@ if __name__ == "__main__":
     path = '/data/dataprocessing/interproscan/all_bacilli.tsv'
     df = spark_df(path)
     inspect = InspectInterPRO(df)
-    inspect.unique_pro_annots()
+    print(inspect.unique_pro_annots())
+    print(inspect.avg_pro_annots)
 
 
+    df_test = df[10:]
+    df_test.to_csv(r"output/df_test.csv")
+
+
+
+# column names
+# ['protein_accession',
+#  'seq_MD5_digest',
+#   'seq_length',
+#    'analysis_method',
+#     'sig_accession',
+#      'sig_description',
+#       'start_location',
+#        'stop_location',
+#         'score',
+#          'status_match',
+#           'date',
+#            'interPRO_accession',
+#             'interPRO_description',
+#              'GO_annots',
+#               'pathway_annots']
