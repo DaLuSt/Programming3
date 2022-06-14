@@ -7,11 +7,11 @@ Date:13/06/2022
 """   
 
 # packages
+from email import header
 from pyspark import SparkFiles
 from pyspark import SparkContext
 from pyspark.sql import Row
 from pyspark.sql import SQLContext
-import pandas as pd
 import os, sys
 
 
@@ -118,12 +118,14 @@ if __name__ == "__main__":
     path = '/data/dataprocessing/interproscan/all_bacilli.tsv'
     df = spark_df(path)
     inspect = InspectInterPRO(df)
-    print(inspect.unique_pro_annots())
-    print(inspect.avg_pro_annots)
+    # print(inspect.unique_pro_annots())
+    print(inspect.avg_pro_annots())
 
+   
+    # print(df_test)
 
-    df_test = df[10:]
-    df_test.to_csv(r"output/df_test.csv")
+    
+
 
 
 
