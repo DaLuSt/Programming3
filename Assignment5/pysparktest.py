@@ -22,27 +22,26 @@ import os, sys
 def explain(data):
     return data._sc._jvm.PythonSQLUtils.explainString(data._jdf.queryExecution(), 'simple')
 
-def spark_df(path):
-    sc = SparkContext('local[16]')
-    sqlContext = SQLContext(sc)
-    spark_df = sqlContext.read.options(delimiter="\t", header=False).csv(SparkFiles.get(path))
-    spark_df = spark_df.withColumnRenamed("_c0","protein_accession")\
-                    .withColumnRenamed("_c1","seq_MD5_digest")\
-                    .withColumnRenamed("_c2","seq_length")\
-                    .withColumnRenamed("_c3","analysis_method")\
-                    .withColumnRenamed("_c4","sig_accession")\
-                    .withColumnRenamed("_c5","sig_description")\
-                    .withColumnRenamed("_c6","start_location")\
-                    .withColumnRenamed("_c7","stop_location")\
-                    .withColumnRenamed("_c8","score")\
-                    .withColumnRenamed("_c9","status_match")\
-                    .withColumnRenamed("_c10","date")\
-                    .withColumnRenamed("_c11","interPRO_accession")\
-                    .withColumnRenamed("_c12","interPRO_description")\
-                    .withColumnRenamed("_c13","GO_annots")\
-                    .withColumnRenamed("_c14","pathway_annots")
-
-    return spark_df
+def create_df(path):
+    schema = StructType([
+    StructField("Protein_accession", StringType(), True),
+    StructField("Sequence_MD5_digest", StringType(), True),
+    StructField("Sequence_length", IntegerType(), True),
+    StructField("Analysis", StringType(), True),
+    StructField("Signature_accession", StringType(), True),
+    StructField("Signature_description", StringType(), True),
+    StructField("Start_location", IntegerType(), True),
+    StructField("Stop_location", IntegerType(), True),
+    StructField("Score", FloatType(), True),
+    StructField("Status", StringType(), True),
+    StructField("Date", StringType(), True),
+    StructField("InterPro_annotations_accession", StringType(), True),
+    StructField("InterPro_annotations_description", StringType(), True),
+    StructField("GO_annotations", StringType(), True),
+    StructField("Pathways_annotations", StringType(), True)])
+    spark = SparkSession.builder.master("local[16]").appName("InterPro").getOrCreate()
+    df = spark.read.option("sep","\t").option("header","False").csv(path,schema=schema)
+    return df
 
 
 # 1. How many distinct protein annotations are found in the dataset? I.e. how many distinc InterPRO numbers are there?
