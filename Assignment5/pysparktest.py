@@ -91,7 +91,7 @@ def q4(df):
     return data4, epr4
 
 # 5. What is the top 10 most common InterPRO features?
-def q15(df):
+def q5(df):
     print("You will get the answer for question 5 later.")
     data5 = df.select('InterPro_annotations_accession')\
                 .filter(df.InterPro_annotations_accession != "-")\
@@ -183,7 +183,7 @@ def output_csv(column1,column2,column3):
         os.makedirs("output")
     df.to_csv("output/assignment5.csv",index=False)
     df.to_csv("output/output.csv",index=False)
-    return print("Finish the assignment! Good Job!")
+    return print("Finished writing to output/assignment5.csv")
 
 
 
