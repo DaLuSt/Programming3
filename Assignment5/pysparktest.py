@@ -22,7 +22,7 @@ import os, sys
 def explain(data):
     return data._sc._jvm.PythonSQLUtils.explainString(data._jdf.queryExecution(), 'simple')
 
-def create_df(path):
+def spark_df(path):
     schema = StructType([
     StructField("Protein_accession", StringType(), True),
     StructField("Sequence_MD5_digest", StringType(), True),
