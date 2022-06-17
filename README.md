@@ -7,5 +7,5 @@ Data science for life sciences programming 3 course, weekly assignments and fina
 - week 2 assignment (Download and Process Pubmed Abstracts from Multiple Hosts)
 - week 3 assignment (Run BLASTP via SLURM)
 - week 4 assignment (Optimize an assembler using GNU Parallel)
-- week 5 assignment
+- week 5 assignment (Anwsering annotations questions with pyspark)
 - final assignment
