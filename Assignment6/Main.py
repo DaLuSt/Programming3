@@ -5,7 +5,7 @@ def main(file_path, method):
     print(f'Loading data for {method}')
 
     DataLoader = DataLoader()  # Instanciate object
-    spk = pstool.pyspark_session('local[16]')  # start session
+    spk = DataLoader.pyspark_session('local[16]')  # start session
     # load data
     #     path = '/data/dataprocessing/interproscan/all_bacilli.tsv'
     schema = StructType([
@@ -27,13 +27,13 @@ def main(file_path, method):
 
     num_cols = ['Sequence_length', 'Start_location', 'Stop_location', 'Score']
 
-    df = pstool.file_loader(file_path, '\t', spk, schema)
-    df_munged = pstool.data_munger(df, maxsize=0.9)
-    numeric_cols = pstool.get_array_from_df(df_munged, num_cols)
+    df = DataLoader.file_loader(file_path, '\t', spk, schema)
+    df_munged = DataLoader.data_munger(df, maxsize=0.9)
+    numeric_cols = DataLoader.get_array_from_df(df_munged, num_cols)
 
-    sign_desc_array = pstool.words_to_array(df_munged, 'Signature_description')
+    sign_desc_array = DataLoader.words_to_array(df_munged, 'Signature_description')
     print(sign_desc_array)
-    IP_annot_desc_array = pstool.words_to_array(df_munged, 'InterPro_annotations_description')
+    IP_annot_desc_array = DataLoader.words_to_array(df_munged, 'InterPro_annotations_description')
     print(IP_annot_desc_array)
     final_array = np.concatenate([numeric_cols, sign_desc_array, IP_annot_desc_array], axis=1)
     print(final_array)
