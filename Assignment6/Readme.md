@@ -1,5 +1,5 @@
 ### status: in progress (Will do in summer)
-#### Assignment 5: Portein function prediction with supervised learning
+#### Assignment 6: Portein function prediction with supervised learning
 The goal of this assignment is to read in a large dataset of protein annotation information and to manipulate, summarize and analyze it using PySpark Dataframes.
 
 #### Introduction
