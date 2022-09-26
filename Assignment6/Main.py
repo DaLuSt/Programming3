@@ -22,7 +22,7 @@ from scipy.sparse import csr_matrix
 st = time.time()
  
 path='/data/dataprocessing/interproscan/all_bacilli.tsv'
-# path='/students/2021-2022/master/DLS_DSLS/part.tsv' # 1million lines
+# path='/students/2021-2022/master/DaanSteur_DSLS/part.tsv' # 1million lines
 
 def read_clean(path):
     """ Function to read the data and some data processing
@@ -149,12 +149,12 @@ if __name__ == "__main__":
         # using metrics module for accuracy calculation
         accuracy=metrics.accuracy_score(y_test, y_pred)
         
-        filename = '/students/2021-2022/master/DLS_DSLS/randforest_model.pkl'
+        filename = '/students/2021-2022/master/programming3/randforest_model.pkl'
         pickle.dump(clf, open(filename, 'wb'))
         
         X_df=dd.from_dask_array(X_train,columns=f_df.columns[2:-1])
 
-        X_df.to_csv('/students/2021-2022/master/DLS_DSLS/X_train.csv')
+        X_df.to_csv('/students/2021-2022/master/DaanSteur_DSLS/X_train.csv')
 
         print("ACCURACY OF THE MODEL: ", accuracy)
         
@@ -174,7 +174,7 @@ clf3 = GaussianNB()
 
 
 
-for clf, label in zip([clf1, clf2, clf3], ['Logistic Regression', 'Random Forest', 'naive Bayes']):
+for clf, label in zip([clf3], ['GaussianNB']):
     scores = cross_val_score(clf, X_train, y_train, scoring='accuracy', cv=5)
     print("Accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), label))
 
