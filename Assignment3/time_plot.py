@@ -10,7 +10,7 @@ data = pd.read_csv(
     "/output/timings.txt",
     sep="\t",
     lineterminator="\n",
-    header=None,
+    header=None
 )
 x = data.iloc[:, 0]
 y = data.iloc[:, 1]
