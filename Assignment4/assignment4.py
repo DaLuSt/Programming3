@@ -10,9 +10,9 @@ import sys
 
 def contig_parser(input_stdin):
     """ 
-    Parse the input file and return a list of contig lengths.
+    Parse the input file and return a list of config lengths.
     Args:input_stdin (str): Input file.
-    returns:list: List of contig lengths.
+    returns:list: List of config lengths.
     """
     try: 
         # appends each line to a list

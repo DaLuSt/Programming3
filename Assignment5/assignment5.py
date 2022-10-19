@@ -1,6 +1,6 @@
 """
 Assignment 5 Programming 3
-Anwser bacterial annotation questions by using spark
+Answer bacterial annotation questions by using spark
 Data Sciences for Life Sciences
 Author: Daan Steur
 Date:13/06/2022
