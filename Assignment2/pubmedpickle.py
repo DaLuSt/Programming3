@@ -19,8 +19,7 @@ class pubmedpickle():
             results = Entrez.read(Entrez.elink(dbfrom="pubmed", db="pmc", LinkName="pubmed_pmc_refs", id=self, api_key='5465528a46551838834940b5006829e8e307'))
 
             references = [f'{link["Id"]}' for link in results[0]["LinkSetDb"][0]["Link"]]
-            references = references[:]
-            return references
+            return references[:]
         except Exception:
             print('Error: Getting citations.')
 
