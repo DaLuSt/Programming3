@@ -317,7 +317,6 @@ def save_model(model, path, model_type="normal"):
     return f"{model_type} model already saved in {path}"
 
 
-
 def main(model_type="nb"):
     """
     Run the model pipeline and save the models and data.
@@ -334,7 +333,7 @@ def main(model_type="nb"):
     model = ML_model(trainData, testData, model_type)
     cvModel = tuning_model(trainData, testData, model_type)
     end = time.time()
-    print(f"For this assignment, the run time is {(end-start)/60/60} hr.")
+    print(f"Run time is {(end-start)/60/60} hr.")
 
     trainData_path = "/students/2021-2022/master/DLS_DSLS/trainData.pkl"
     testData_path = "/students/2021-2022/master/DLS_DSLS/testData.pkl"
@@ -351,4 +350,4 @@ def main(model_type="nb"):
     save_model(cvModel, best_model_path, "best")
 
 if __name__ == '__main__':
-    main("nb")
+    main("gbt")
