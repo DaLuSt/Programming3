@@ -1,216 +1,354 @@
-import numpy as np
-import pandas as pd
-import dask.dataframe as dd
-import dask.array as da
-from dask_ml.preprocessing import OneHotEncoder
-from dask_ml import model_selection
-import sklearn
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import GaussianNB
-from sklearn import metrics 
-from sklearn.model_selection import cross_val_score
-from dask.distributed import Client
-from dask_ml.wrappers import ParallelPostFit
-import joblib
+"""
+description: This program is used to create and train a machine learning model to predict the InterPro annotations of proteins.
+Author: Daan Steur
+date: 25-06-2023
+"""
+
+from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
+from pyspark.sql.functions import abs, when, max
+from pyspark.ml.feature import StringIndexer, VectorAssembler
+from pyspark.ml import Pipeline
+from pyspark.ml.classification import RandomForestClassifier, DecisionTreeClassifier, NaiveBayes, LinearSVC, MultilayerPerceptronClassifier, GBTClassifier
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
 import time
-import pickle
-from scipy.sparse import csr_matrix
+from pathlib import Path
+from pyspark.ml import Model
 
 
-# get the start time
-st = time.time()
- 
-path='/data/dataprocessing/interproscan/all_bacilli.tsv'
-# path='/students/2021-2022/master/DaanSteur_DSLS/part.tsv' # 1million lines
-
-def read_clean(path):
-    """ Function to read the data and some data processing
-    Arguments:
-        path: path where the file is located as string
-       
-    Return:
-        ddf: dask dataframe
+def create_df(path):
     """
-    ddf = dd.read_csv(path,sep='\t',usecols=[0,2,6,7,11],header=None,blocksize="50MB")
-
-    #Renaming the columns
-    ddf=ddf.rename(columns={0: "Protein", 2:'Sequence_length', 6:'Start', 7:'Stop', 11:'Interpro_accession',}) 
+    Create a Spark DataFrame from a file path.
     
-    #deleting the null interpro accessions
-    ddf=ddf.loc[~(ddf['Interpro_accession']=='-')]
-
-    #dropping duplicates
-    ddf=ddf.drop_duplicates()
-
-    #creating feat length column
-    ddf['feat_len']=(ddf.Stop-ddf.Start)/ddf['Sequence_length']
-    return ddf
-
-def fun1(x):
-    """ Function to check whether an Interpro accession is large or small.Used with apply method
-    Arguments:
-        x: dask dataframe  
-    Return:
-        0: if Interpro accession is small
-        1: if Interpro accession is large
+    Args:
+        path (str): The correct file path.
+    
+    Returns:
+        df (DataFrame): Spark DataFrame.
     """
-    return 1 if x['feat_len']>.90 else 0
+    schema = StructType([
+        StructField("Protein_accession", StringType(), True),
+        StructField("Sequence_MD5_digest", StringType(), True),
+        StructField("Sequence_length", IntegerType(), True),
+        StructField("Analysis", StringType(), True),
+        StructField("Signature_accession", StringType(), True),
+        StructField("Signature_description", StringType(), True),
+        StructField("Start_location", IntegerType(), True),
+        StructField("Stop_location", IntegerType(), True),
+        StructField("Score", FloatType(), True),
+        StructField("Status", StringType(), True),
+        StructField("Date", StringType(), True),
+        StructField("InterPro_annotations_accession", StringType(), True),
+        StructField("InterPro_annotations_description", StringType(), True),
+        StructField("GO_annotations", StringType(), True),
+        StructField("Pathways_annotations", StringType(), True)
+    ])
+    
+    spark = SparkSession.builder \
+        .appName("InterPro") \
+        .config("spark.driver.memory", "128g") \
+        .config("spark.executor.memory", "128g") \
+        .config("spark.sql.debug.maxToStringFields", "100") \
+        .master("local[16]") \
+        .getOrCreate()
+    
+    df = spark.read \
+        .option("sep", "\t") \
+        .option("header", "False") \
+        .csv(path, schema=schema)
+    
+    return df
 
 
-def find_size(x):
-    """ Function that returns proteins with atleast one small and large interpro accession.
-        Used with groupby apply method
-    Arguments:
-        x:groupby object grouped on protein
-    Return:
-        x:Returns the datframe
+
+
+def data_preprocessing(df):
     """
-    m=np.mean(x['size'])
+    Perform data preprocessing on the input DataFrame.
     
-    if (m>0) and (m<1) : 
-        return x
-
-def final_df(s_pivot,l_df):
-    """ Function to merge large dataframe with small dataframe on protein.
-    Arguments:
-        s_pivot: Pivoted dataframe in which columns are the name of small interpro accession 
-                 and values are their counts
-        l_df:  Dask datframe containing the largest interpro accession of a protein
-    Return:
-        f_df: Final dataframe for machine learning
+    Args:
+        df (DataFrame): Spark DataFrame.
+    
+    Returns:
+        small_df (DataFrame): Processed DataFrame containing small InterPro_annotations_accession counts.
+        large_df (DataFrame): Processed DataFrame containing selected large InterPro_annotations_accession data.
     """
-    f_df=s_pivot.merge(l_df,how='inner',left_on='Protein',right_on='Protein')
-    f_df=f_df.drop(columns=['feat_len'])
-    f_df=f_df.replace(np.nan, 0)
-    f_df=f_df.reset_index()
-    return f_df
+    df = df.filter(df.InterPro_annotations_accession != "-") \
+        .withColumn("Ratio", abs(df["Stop_location"] - df["Start_location"]) / df["Sequence_length"]) \
+        .withColumn("Size", when((abs(df["Stop_location"] - df["Start_location"]) / df["Sequence_length"]) > 0.9, 1).otherwise(0))
 
-## Machine learning
+    intersection = df.filter(df.Size == 0).select("Protein_accession").intersect(
+        df.filter(df.Size == 1).select("Protein_accession"))
+    intersection_df = intersection.join(df, ["Protein_accession"])
 
-def ml_dfs(f_df):
-    """ Function to perform one hot encoding on class labels and to do train test splitting
-    Arguments:
-        f_df: Dask dataframe with the count of small interpro accession and 
-              the name of largest interpro accession of each protein
-    Return:
-        X_train,y_train: Training dask arrays
-        X_test,y_test: Testing dask arrays 
+    small_df = intersection_df.filter(df.Size == 0).groupBy("Protein_accession").pivot("InterPro_annotations_accession").count()
+
+    large_df = intersection_df.filter(df.Size == 1).groupby("Protein_accession").agg(max("Ratio").alias("Ratio"))
+    large_df = large_df.join(intersection_df, ["Protein_accession", "Ratio"]).dropDuplicates(["Protein_accession"])
+
+    columns_to_drop = ["Sequence_MD5_digest", "Analysis", "Signature_accession", "Signature_description",
+                       "Score", "Status", "Date", "InterPro_annotations_description", "GO_annotations",
+                       "Pathways_annotations", "Ratio", "Size", "Stop_location", "Start_location", "Sequence_length"]
+    large_df = large_df.drop(*columns_to_drop)
+
+    return small_df, large_df
+
+
+
+def ML_df_create(small_df, large_df):
     """
-    y = OneHotEncoder().fit_transform(f_df[['Interpro_accession']])
-    X=f_df.iloc[:,2:-1].to_dask_array(lengths=True)
+    Create the correct ML dataframe for further analysis.
     
-    X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size = 0.2,random_state=42,convert_mixed_types=True)
-
-    return X_train, X_test, y_train, y_test
-
-
-if __name__ == "__main__":
-    ddf=read_clean(path)
-
-    ddf['size']=ddf.apply(lambda x:fun1(x),axis=1)
-
-    #creating dataframe with proteins which have atleast one big and small interpro accession
-    full_df=ddf.groupby(['Protein',]).apply(find_size,meta={'Protein':'str','Sequence_length':'int64','Start':'int64',
-'Stop':'int64','Interpro_accession':'str','feat_len':'int64','size':'int64',}).reset_index(drop=True)
+    Args:
+        small_df (DataFrame): Spark DataFrame with preprocessed small InterPro_annotations_accession counts.
+        large_df (DataFrame): Spark DataFrame with preprocessed large InterPro_annotations_accession data.
     
-    #splittng dataframe into two containing large and small interpro accessions
-    large_df=full_df.loc[full_df['size']==1]
-    small_df=full_df.loc[full_df['size']==0]
+    Returns:
+        ML_df (DataFrame): ML dataframe ready for analysis.
+    """
+    ML_df = large_df.join(small_df, ["Protein_accession"], "outer").fillna(0).drop("Protein_accession")
 
-    client = Client()
-    with joblib.parallel_backend('dask'):
+    label_indexer = StringIndexer(inputCol="InterPro_annotations_accession", outputCol="InterPro_index")
+    input_columns = ML_df.columns[1:]
 
-        #Finding the largest interpro accession of a protein
-        l_df = large_df.loc[large_df.groupby(['Protein'])['feat_len'].transform(max) == large_df['feat_len'],['Protein','Interpro_accession','feat_len',]]
-        #counting the number of each small interpro accession#transform('count')#agg('count').reset_index()
-        s_df=small_df.groupby(['Protein','Interpro_accession'])['size'].agg('count').reset_index()
+    assembler = VectorAssembler(inputCols=input_columns, outputCol="InterPro_features")
 
-        #catego
-        s_df=s_df.categorize(columns=['Interpro_accession'])
-        l_df=l_df.categorize(columns=['Interpro_accession'])
+    pipeline = Pipeline(stages=[label_indexer, assembler])
+    ML_final = pipeline.fit(ML_df).transform(ML_df)
 
-        s_pivot=dd.reshape.pivot_table(s_df,index='Protein',columns='Interpro_accession', values='size')
-
-        f_df=final_df(s_pivot,l_df)
-
-        X_train, X_test, y_train, y_test=ml_dfs(f_df)
-
-    mid_time=(time.time() - st)/60
-    print('Entering ML part', mid_time, 'minutes')
+    return ML_final
 
 
-    with joblib.parallel_backend('dask'):
-        # creating randomforestclassifier object
-        clf = RandomForestClassifier(random_state=0)
-        clf.fit(X_train, y_train)
-        # performing predictions on the test dataset
-        y_pred = clf.predict(X_test)
-        # using metrics module for accuracy calculation
-        accuracy=metrics.accuracy_score(y_test, y_pred)
-        
-        filename = '/students/2021-2022/master/programming3/randforest_model.pkl'
-        pickle.dump(clf, open(filename, 'wb'))
-        
-        X_df=dd.from_dask_array(X_train,columns=f_df.columns[2:-1])
 
-        X_df.to_csv('/students/2021-2022/master/DaanSteur_DSLS/X_train.csv')
-
-        print("ACCURACY OF THE MODEL: ", accuracy)
-        
-    # get the end time
-    et = time.time()
-
-    # get the execution time
-    elapsed_time = (et - st)/60
-    print('Execution time:', elapsed_time, 'minutes')
+def split_data(ML_final, percentage=0.7):
+    """
+    Split the data into training and test sets.
     
+    Args:
+        ML_final (DataFrame): The ML dataframe.
+        percentage (float): The percentage of data to be allocated for training (default: 0.7).
     
+    Returns:
+        trainData (DataFrame): Training data.
+        testData (DataFrame): Test data.
+    """
+    (trainData, testData) = ML_final.randomSplit([percentage, 1 - percentage], seed=42)
+    return trainData, testData
+
+
+
+def ML_model(trainData, testData, model_type="rf"):
+    """
+    Create and train the specified ML model.
     
+    Args:
+        trainData (DataFrame): Spark DataFrame of the training data.
+        testData (DataFrame): Spark DataFrame of the test data.
+        model_type (str): Type of ML model to create (default: "rf").
+            Available options: "rf" (random forest), "dtc" (decision tree), "nb" (naive bayes), 
+            "lsvc" (linear SVC), "mlp" (multilayer perceptron), "gbt" (gradient boosted trees).
+    
+    Returns:
+        model: Trained ML model.
+    """
+    if model_type == "rf":
+        model = RandomForestClassifier(labelCol="InterPro_index",
+                                       featuresCol="InterPro_features",
+                                       predictionCol="prediction")
+    elif model_type == "dtc":
+        model = DecisionTreeClassifier(labelCol="InterPro_index",
+                                       featuresCol="InterPro_features",
+                                       predictionCol="prediction")
+    elif model_type == "nb":
+        model = NaiveBayes(modelType="multinomial",
+                           labelCol="InterPro_index",
+                           featuresCol="InterPro_features",
+                           predictionCol="prediction")
+    elif model_type == "lsvc":
+        model = LinearSVC(labelCol="InterPro_index",
+                          featuresCol="InterPro_features",
+                          predictionCol="prediction")
+    elif model_type == "mlp":
+        model = MultilayerPerceptronClassifier(labelCol="InterPro_index",
+                                               featuresCol="InterPro_features",
+                                               predictionCol="prediction")
+    elif model_type == "gbt":
+        model = GBTClassifier(labelCol="InterPro_index",
+                              featuresCol="InterPro_features",
+                              predictionCol="prediction")
+    else:
+        raise ValueError("Invalid model_type. Available options: 'rf', 'dtc', 'nb', 'lsvc', 'mlp', 'gbt'")
 
-clf1 = LogisticRegression(random_state=1)
-clf2 = RandomForestClassifier(random_state=1)
-clf3 = GaussianNB()
+    model = model.fit(trainData)
+    predictions = model.transform(testData)
+
+    evaluator = MulticlassClassificationEvaluator(labelCol='InterPro_index',
+                                                  predictionCol='prediction',
+                                                  metricName='accuracy')
+    accuracy = evaluator.evaluate(predictions)
+    print(f"Accuracy is {accuracy}.")
+
+    return model
+
+
+def tuning_model(trainData, testData, model_type="rf"):
+    """
+    Tune the specified ML model for better performance.
+    
+    Args:
+        trainData (DataFrame): Spark DataFrame of the training data.
+        testData (DataFrame): Spark DataFrame of the test data.
+        model_type (str): Type of ML model to tune (default: "rf").
+            Available options: "rf" (random forest), "dtc" (decision tree), "nb" (naive bayes), 
+            "lsvc" (linear SVC), "mlp" (multilayer perceptron), "gbt" (gradient boosted trees).
+    
+    Returns:
+        cvModel: Tuned ML model.
+    """
+    if model_type == "rf":
+        model = RandomForestClassifier(labelCol="InterPro_index",
+                                       featuresCol="InterPro_features",
+                                       predictionCol="prediction",
+                                       seed=42,
+                                       maxMemoryInMB=256)
+        paramGrid = (ParamGridBuilder()
+                     .addGrid(model.maxDepth, [5, 10, 20])
+                     .addGrid(model.numTrees, [20, 100])
+                     .build())
+    elif model_type == "dtc":
+        model = DecisionTreeClassifier(labelCol="InterPro_index",
+                                       featuresCol="InterPro_features",
+                                       predictionCol="prediction")
+        paramGrid = (ParamGridBuilder()
+                     .addGrid(model.maxDepth, [2, 4, 6, 8, 10, 12])
+                     .build())
+    elif model_type == "nb":
+        model = NaiveBayes(modelType="multinomial",
+                           labelCol="InterPro_index",
+                           featuresCol="InterPro_features",
+                           predictionCol="prediction")
+        paramGrid = (ParamGridBuilder()
+                     .addGrid(model.smoothing, [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0])
+                     .build())
+    elif model_type == "lsvc":
+        model = LinearSVC(labelCol="InterPro_index",
+                          featuresCol="InterPro_features",
+                          predictionCol="prediction")
+        paramGrid = (ParamGridBuilder()
+                     .addGrid(model.maxIter, [10, 100, 1000])
+                     .addGrid(model.regParam, [0.0, 0.1, 0.2])
+                     .build())
+    elif model_type == "mlp":
+        model = MultilayerPerceptronClassifier(labelCol="InterPro_index",
+                                               featuresCol="InterPro_features",
+                                               predictionCol="prediction",
+                                               layers=[100, 50, 2])
+        paramGrid = (ParamGridBuilder()
+                     .addGrid(model.blockSize, [128, 256])
+                     .addGrid(model.maxIter, [50, 100])
+                     .build())
+    elif model_type == "gbt":
+        model = GBTClassifier(labelCol="InterPro_index",
+                              featuresCol="InterPro_features",
+                              predictionCol="prediction")
+        paramGrid = (ParamGridBuilder()
+                     .addGrid(model.maxDepth, [5, 10, 20])
+                     .addGrid(model.maxIter, [20, 100])
+                     .build())
+    else:
+        raise ValueError("Invalid model_type. Available options: 'rf', 'dtc', 'nb', 'lsvc', 'mlp', 'gbt'")
+
+    evaluator = MulticlassClassificationEvaluator(labelCol='InterPro_index',
+                                                  predictionCol='prediction',
+                                                  metricName='accuracy')
+
+    cv = CrossValidator(estimator=model,
+                        evaluator=evaluator,
+                        estimatorParamMaps=paramGrid,
+                        numFolds=5,
+                        parallelism=10,
+                        seed=42)
+
+    cvModel = cv.fit(trainData)
+    cvPredictions = cvModel.transform(testData)
+
+    print(f"The model accuracy after tuning is {evaluator.evaluate(cvPredictions)}.")
+
+    return cvModel
+
+
+def save_file(df, path):
+    """
+    Save the Spark DataFrame to a file.
+    
+    Args:
+        df (DataFrame): Spark DataFrame to be saved.
+        path (str): The file path to save the DataFrame.
+    
+    Returns:
+        str: Message indicating the file has been saved.
+    """
+    df.toPandas().set_index('InterPro_annotations_accession').to_pickle(path)
+    return f"File already saved in {path}"
 
 
 
-for clf, label in zip([clf3], ['GaussianNB']):
-    scores = cross_val_score(clf, X_train, y_train, scoring='accuracy', cv=5)
-    print("Accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), label))
+def save_model(model, path, model_type="normal"):
+    """
+    Save the Spark model to a file.
+
+    Args:
+        model (Model): Spark model to be saved.
+        path (str): The file path to save the model.
+        model_type (str): Type of model to save (default: "normal").
+            Available options: "normal" (basic model), "best" (tuned model).
+
+    Returns:
+        str: Message indicating the model has been saved.
+    """
+    if model_type == "normal":
+        model.write().overwrite().save(path)
+    elif model_type == "best" and hasattr(model, "bestModel") and isinstance(model.bestModel, Model):
+        model.bestModel.write().overwrite().save(path)
+    else:
+        raise ValueError("Invalid model_type or bestModel not found.")
+
+    return f"{model_type} model already saved in {path}"
 
 
-    with joblib.parallel_backend('dask'):
-        # creating LogisticRegression object
-        clf = LogisticRegression(random_state=0)
-        clf.fit(X_train, y_train)
-        # performing predictions on the test dataset
-        y_pred = clf.predict(X_test)
-        # using metrics module for accuracy calculation
-        accuracy=metrics.accuracy_score(y_test, y_pred)
-        
-        filename = '/students/2021-2022/master/DLS_DSLS/LogisticRegression_model.pkl'
-        pickle.dump(clf, open(filename, 'wb'))
-        
-        X_df=dd.from_dask_array(X_train,columns=f_df.columns[2:-1])
 
-        X_df.to_csv('/students/2021-2022/master/DLS_DSLS/X_train.csv')
+def main(model_type="nb"):
+    """
+    Run the model pipeline and save the models and data.
 
-        print("ACCURACY OF THE MODEL: ", accuracy)
-        
-    with joblib.parallel_backend('dask'):
-        # creating GaussianNB object
-        clf = GaussianNB(random_state=0)
-        clf.fit(X_train, y_train)
-        # performing predictions on the test dataset
-        y_pred = clf.predict(X_test)
-        # using metrics module for accuracy calculation
-        accuracy=metrics.accuracy_score(y_test, y_pred)
-        
-        filename = '/students/2021-2022/master/DLS_DSLS/GaussianNB_model.pkl'
-        pickle.dump(clf, open(filename, 'wb'))
-        
-        X_df=dd.from_dask_array(X_train,columns=f_df.columns[2:-1])
+    Args:
+        model_type (str): Type of model to run (default: "nb").
+            Available options: "rf" (random forest), "dtc" (decision tree), "nb" (naive bayes).
+    """
+    start = time.time()
+    df = create_df("/data/dataprocessing/interproscan/all_bacilli.tsv")
+    small_df, large_df = data_preprocessing(df)
+    ML_final = ML_df_create(small_df, large_df)
+    trainData, testData = split_data(ML_final, 0.7)
+    model = ML_model(trainData, testData, model_type)
+    cvModel = tuning_model(trainData, testData, model_type)
+    end = time.time()
+    print(f"For this assignment, the run time is {(end-start)/60/60} hr.")
 
-        X_df.to_csv('/students/2021-2022/master/DLS_DSLS/X_train.csv')
+    trainData_path = "/students/2021-2022/master/DLS_DSLS/trainData.pkl"
+    testData_path = "/students/2021-2022/master/DLS_DSLS/testData.pkl"
+    model_path = f"/students/2021-2022/master/DLS_DSLS/{model_type}Model"
+    best_model_path = f"/students/2021-2022/master/DLS_DSLS/{model_type}BestModel"
 
-        print("ACCURACY OF THE MODEL: ", accuracy)
+    if not Path(trainData_path).is_file():
+        save_file(trainData, trainData_path)
+    
+    if not Path(testData_path).is_file():
+        save_file(testData, testData_path)
+
+    save_model(model, model_path, "normal")
+    save_model(cvModel, best_model_path, "best")
+
+if __name__ == '__main__':
+    main("nb")
