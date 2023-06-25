@@ -335,10 +335,10 @@ def main(model_type="nb"):
     end = time.time()
     print(f"Run time is {(end-start)/60/60} hr.")
 
-    trainData_path = "/students/2021-2022/master/DLS_DSLS/trainData.pkl"
-    testData_path = "/students/2021-2022/master/DLS_DSLS/testData.pkl"
-    model_path = f"/students/2021-2022/master/DLS_DSLS/{model_type}Model"
-    best_model_path = f"/students/2021-2022/master/DLS_DSLS/{model_type}BestModel"
+    trainData_path = "/students/2021-2022/master/DaanSteur_DSLS/trainData.pkl"
+    testData_path = "/students/2021-2022/master/DaanSteur_DSLS/testData.pkl"
+    model_path = f"/students/2021-2022/master/DaanSteur_DSLS/{model_type}Model"
+    best_model_path = f"/students/2021-2022/master/DaanSteur_DSLS/{model_type}BestModel"
 
     if not Path(trainData_path).is_file():
         save_file(trainData, trainData_path)
