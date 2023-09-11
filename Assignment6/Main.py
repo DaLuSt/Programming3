@@ -350,4 +350,4 @@ def main(model_type="nb"):
     save_model(cvModel, best_model_path, "best")
 
 if __name__ == '__main__':
-    main("gbt")
+    main("nb")
