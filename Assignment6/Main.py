@@ -70,6 +70,7 @@ def create_dataframe(path, num_rows=None):
     
     # Select the first num_rows rows
     df = df.limit(num_rows)
+    print("dataframe created")
     
     return df
 
@@ -104,6 +105,8 @@ def data_preprocessing(df):
         "Score","Status","Date","InterPro_annotations_description","GO_annotations",
         "Pathways_annotations","Ratio","Size","Stop_location","Start_location","Sequence_length")
     large_df = large_df.drop(*columns)
+    print("data preprocessing finished")
+    
     return small_df, large_df
 
 
@@ -126,6 +129,8 @@ def ML_df_create(small_df,large_df):
 
     pipeline = Pipeline(stages=[Label,assembler])
     ML_final = pipeline.fit(ML_df).transform(ML_df)
+    print("ML dataframe created")
+    
     return ML_final
 
 
@@ -138,6 +143,9 @@ def split_data(ML_final, percentage=0.7):
     return: trainData, df; testData,df
     """
     (trainData, testData) = ML_final.randomSplit([percentage, 1-percentage],seed=42)
+    
+    print("Data split into training and test sets")
+    
     return trainData, testData
 
 
@@ -197,7 +205,6 @@ def train_and_evaluate_naive_bayes_with_cv(model_type, train_data, test_data, ou
     return cv_model, nb_model
 
 
-
 def save_spark_model(model, file_path):
     """
     Save a Spark MLlib model to a file.
@@ -212,8 +219,6 @@ def save_spark_model(model, file_path):
     model.save(file_path)
         
         
-
-
 def save_dataframe_as_csv(dataframe, file_path):
     """
     Save a Spark DataFrame as a CSV file.
@@ -232,10 +237,9 @@ def save_dataframe_as_csv(dataframe, file_path):
     pandas_df.to_csv(file_path, index=False)
 
 
-
 def main():
     path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
-    data = create_dataframe(path, num_rows=None)
+    data = create_dataframe(path, num_rows=100000)
     small_df, large_df = data_preprocessing(data)
     ml_final = ML_df_create(small_df, large_df)
     train_data, test_data = split_data(ml_final,percentage=0.7)
