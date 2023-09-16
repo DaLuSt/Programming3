@@ -252,7 +252,7 @@ def save_dataframe_as_csv(dataframe, file_path):
 
 def main():
     path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
-    data = create_dataframe(path, num_rows=1000000)
+    data = create_dataframe(path, num_rows=100000)
     small_df, large_df = data_preprocessing(data)
     ml_final = ML_df_create(small_df, large_df)
     train_data, test_data = split_data(ml_final,percentage=0.7)
