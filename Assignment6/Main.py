@@ -31,7 +31,11 @@ import seaborn as sns
 
 
 # Create data
-def create_dataframe(path, num_rows=None):
+from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
+
+
+def create_dataframe(path, num_rows=5000):
     """
     Create a Spark DataFrame from a file with the specified schema.
     
@@ -42,6 +46,7 @@ def create_dataframe(path, num_rows=None):
     Returns:
         pyspark.sql.DataFrame: The Spark DataFrame.
     """
+    # Define the schema
     schema = StructType([
         StructField("Protein_accession", StringType(), True),
         StructField("Sequence_MD5_digest", StringType(), True),
@@ -60,19 +65,27 @@ def create_dataframe(path, num_rows=None):
         StructField("Pathways_annotations", StringType(), True)
     ])
     
-    spark = SparkSession.builder.master("local[16]") \
-        .config('spark.driver.memory', '128g') \
-        .config('spark.executor.memory', '128g') \
-        .config("spark.sql.debug.maxToStringFields", "100") \
-        .appName("InterPro").getOrCreate()
+    # Create a SparkSession
+    spark = SparkSession.builder \
+        .appName("InterPro") \
+        .config("spark.driver.memory", "128g") \
+        .config("spark.executor.memory", "128g") \
+        .config("spark.sql.debug.maxToStringFields", "25") \
+        .master("local[16]") \
+        .getOrCreate()
     
-    df = spark.read.option("sep", "\t").option("header", "False").csv(path, schema=schema)
+    # Read the CSV file into a DataFrame
+    df = spark.read \
+        .option("sep", "\t") \
+        .option("header", "False") \
+        .csv(path, schema=schema)
     
     # Select the first num_rows rows
     df = df.limit(num_rows)
-    print("dataframe created")
+    print("DataFrame created")
     
     return df
+
 
 # data preprocessing
 def data_preprocessing(df):
@@ -239,7 +252,7 @@ def save_dataframe_as_csv(dataframe, file_path):
 
 def main():
     path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
-    data = create_dataframe(path, num_rows=500000)
+    data = create_dataframe(path, num_rows=1000000)
     small_df, large_df = data_preprocessing(data)
     ml_final = ML_df_create(small_df, large_df)
     train_data, test_data = split_data(ml_final,percentage=0.7)
