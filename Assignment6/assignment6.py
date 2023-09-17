@@ -368,10 +368,13 @@ def save_dataframe_as_csv(dataframe, file_path):
 
 def main():
     path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
-    data = create_dataframe(path, num_rows=100000)
+    data = create_dataframe(path, num_rows=5000)
     small_df, large_df = data_preprocessing(data)
     ml_final = ML_df_create(small_df, large_df)
     train_data, test_data = split_data(ml_final,percentage=0.7)
+    save_dataframe_as_csv(train_data, '/students/2021-2022/master/DaanSteur_DSLS/train_data.csv')
+    save_dataframe_as_csv(test_data, '/students/2021-2022/master/DaanSteur_DSLS/test_data.csv')
+    
     cv_model, nb_model = train_and_evaluate_naive_bayes_with_cv("multinomial", train_data, test_data, "/students/2021-2022/master/DaanSteur_DSLS/nb_multinomial_cv_results.txt")
     save_spark_model(nb_model, '/students/2021-2022/master/DaanSteur_DSLS/nb_model_multinomial.pkl')
     save_spark_model(cv_model, '/students/2021-2022/master/DaanSteur_DSLS/cv_model_multinomial.pkl')
@@ -384,71 +387,4 @@ def main():
     save_dataframe_as_csv(test_data, '/students/2021-2022/master/DaanSteur_DSLS/test_data.csv')
 
 main()
-
-
-# data analysis
-
-# In[ ]:
-
-
-# import matplotlib.pyplot as plt
-# import numpy as np
-# import seaborn as sns
-# import pandas as pd
-
-# # Assuming you have a PySpark DataFrame named large_proteins and small_proteins
-# # Select the feature_Length column and convert it to a NumPy array
-# large_feature_lengths = large_proteins.select('feature_Length').rdd.flatMap(lambda x: x).collect()
-# small_feature_lengths = small_proteins.select('feature_Length').rdd.flatMap(lambda x: x).collect()
-
-# # Create subplots with a shared y-axis in a 2x2 grid
-# fig, axs = plt.subplots(2, 2, figsize=(12, 10), sharey='row')
-
-# # Customize the style of the histograms
-# color_large = 'lightgreen'
-# color_small = 'orange'
-# bins = 20
-
-# # Plot for small_proteins
-# axs[0, 0].set_title('Histogram showing the feature length of small Interpro accession')
-# axs[0, 0].set_xlabel('Feature length (Start-Stop)')
-# axs[0, 0].set_ylabel('Frequency')
-# axs[0, 0].hist(small_feature_lengths, bins=bins, color=color_small, edgecolor='black', alpha=0.7)
-
-# # Plot for large_proteins
-# axs[0, 1].set_title('Histogram showing the feature length of large Interpro accession')
-# axs[0, 1].set_xlabel('Feature length (Start-Stop)')
-# axs[0, 1].set_ylabel('Frequency')
-# axs[0, 1].hist(large_feature_lengths, bins=bins, color=color_large, edgecolor='black', alpha=0.7)
-
-
-
-# # Add gridlines
-# for ax in axs[:, 0]:
-#     ax.grid(axis='y', linestyle='--', alpha=0.5)
-
-# # Convert PySpark DataFrames to Pandas DataFrames
-# large_df = large_proteins.toPandas()
-# small_df = small_proteins.toPandas()
-
-# # Set Seaborn theme and style
-# sns.set_theme(style="whitegrid")
-
-# # Plot for small_proteins with light green color
-# sns.boxplot(x=small_df["feature_Length"], ax=axs[1, 1], color='lightgreen')
-# axs[1, 0].set_title('Boxplot of small Interpro accessions')
-# axs[1, 0].set_ylabel('Feature Length')
-
-# # Plot for large_proteins with orange color
-# sns.boxplot(x=large_df["feature_Length"], ax=axs[1, 0], color='orange')
-# axs[1, 1].set_title('Boxplot of large Interpro accessions')
-# axs[1, 1].set_ylabel('Feature Length')
-
-# # Adjust spacing between subplots
-# plt.tight_layout()
-
-# # plt.savefig('protein_analys_plots.png')
-
-# # Show the combined plot
-# plt.show()
 
