@@ -7,6 +7,7 @@ date: 25-06-2023
 """
 # pyspark
 import pyspark
+import logging
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
 from pyspark.sql.functions import *
 from pyspark.sql import SparkSession
@@ -35,18 +36,17 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
 
 
-def create_dataframe(path, num_rows=5000):
+def create_dataframe(path, num_rows=None):
     """
     Create a Spark DataFrame from a file with the specified schema.
-    
+
     Args:
         path (str): The file path.
-        num_rows (int): The number of rows to select from the DataFrame (default is 5000).
-        
+        num_rows (int): The number of rows to select from the DataFrame (default is None, which processes the entire file).
+
     Returns:
         pyspark.sql.DataFrame: The Spark DataFrame.
     """
-    # Define the schema
     schema = StructType([
         StructField("Protein_accession", StringType(), True),
         StructField("Sequence_MD5_digest", StringType(), True),
@@ -65,25 +65,23 @@ def create_dataframe(path, num_rows=5000):
         StructField("Pathways_annotations", StringType(), True)
     ])
     
-    # Create a SparkSession
-    spark = SparkSession.builder \
-        .appName("InterPro") \
-        .config("spark.driver.memory", "128g") \
-        .config("spark.executor.memory", "128g") \
-        .config("spark.sql.debug.maxToStringFields", "25") \
-        .master("local[16]") \
-        .getOrCreate()
     
-    # Read the CSV file into a DataFrame
-    df = spark.read \
-        .option("sep", "\t") \
-        .option("header", "False") \
-        .csv(path, schema=schema)
-    
-    # Select the first num_rows rows
-    df = df.limit(num_rows)
-    print("DataFrame created")
-    
+    # Configure logging to store logs in a file
+    logging.basicConfig(filename='/students/2021-2022/master/DaanSteur_DSLS/spark_logs.txt', level=logging.INFO)
+
+    spark = SparkSession.builder.master("local[16]") \
+        .config('spark.driver.memory', '128g') \
+        .config('spark.executor.memory', '128g') \
+        .config("spark.sql.debug.maxToStringFields", "100") \
+        .appName("InterPro").getOrCreate()
+
+
+    df = spark.read.option("sep", "\t").option("header", "False").csv(path, schema=schema)
+
+    # If num_rows is None, process the entire file
+    if num_rows is not None:
+        df = df.limit(num_rows)
+
     return df
 
 
@@ -142,23 +140,29 @@ def ML_df_create(small_df,large_df):
 
     pipeline = Pipeline(stages=[Label,assembler])
     ML_final = pipeline.fit(ML_df).transform(ML_df)
-    print("ML dataframe created")
     
+    print("ML dataframe created")
     return ML_final
 
 
 # creating a training and testing dataset with a 70/30 split
-def split_data(ML_final, percentage=0.7):
+def split_data(ML_final, percentage=0.7, seed=42):
     """
-    it can help you split the data to trainning data and test data.
-    ML_final: df
-    percentage:int, you can set another value.
-    return: trainData, df; testData,df
+    Split the data into training and test sets.
+
+    Args:
+        ML_final (DataFrame): The DataFrame to be split.
+        percentage (float): The percentage of data to be allocated for training (default is 0.7).
+        seed (int): The random seed for reproducibility (default is 42).
+
+    Returns:
+        DataFrame, DataFrame: The training and test DataFrames.
     """
-    (trainData, testData) = ML_final.randomSplit([percentage, 1-percentage],seed=42)
+    trainData, testData = ML_final.randomSplit([percentage, 1 - percentage], seed=seed)
+    
+    print(f"Number of rows in trainData: {trainData.count()}, Number of rows in testData: {testData.count()}")
     
     print("Data split into training and test sets")
-    
     return trainData, testData
 
 
