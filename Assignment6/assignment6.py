@@ -1,10 +1,43 @@
+#!/usr/bin/env python
+# coding: utf-8
 
-"""
-Description: This program is used to create and train a machine learning model to predict the InterPro annotations of small proteins.
-data source : path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
-Author: Daan Steur
-date: 25-06-2023
-"""
+# # Master DSLS / Programming 3 / Assignment 6
+# # Final Assignment
+
+# ## Introduction
+# https://bioinf.nl/~martijn/master/programming3/assignment6.html
+# 
+# This is the final for programming 3. In this assignment, I will develop scikit-learn machine learning models to predict the function of the proteins in the specific dataset. This model will use small InterPro_annotations_accession to predict large InterPro_annotations_accession.
+# The definition of small InterPro_annotations_accession and large InterPro_annotations_accession is defined as below:
+# 
+# If InterPro_annotations_accession's feature length(Stop_location-Start_location) / Sequence_length > 0.9, it is large InterPro_annotations_accession.
+# 
+# Otherwise, it is a small InterPro_annotations_accession.
+# 
+# We can briefly rewrite as:
+# 
+#             |(Stop - Start)|/Sequence >  0.9 --> Large
+# 
+#             |(Stop - Start)|/Sequence <= 0.9 --> small
+# 
+# I will also check the "bias" and "noise" that does not make sense from the dataset.
+# 
+# ie. lines(-) from the TSV file which don't contain InterPRO numbers
+# 
+# ie. proteins which don't have a large feature (according to the criteria above)
+
+# ## 1. Goal
+# 
+# The goal of this assignment is to predict large InterPro_annotations_accession by small InterPro_annotations_accession.
+# 
+# I will use the dataset from /data/dataprocessing/interproscan/all_bacilli.tsv file on assemblix2012 and assemblix2019. However, this file contains ~4,200,000 protein annotations, so I will put a subset of all_bacilli.tsv on GitHub and on local for code testing.
+
+# In[ ]:
+
+
+# Spark web UI:http://localhost:4040/jobs/
+# Output format : https://interproscan-docs.readthedocs.io/en/latest/OutputFormats.html
+
 # pyspark
 import pyspark
 import logging
@@ -16,7 +49,7 @@ from pyspark_dist_explore import hist
 
 # pyspark ML
 from pyspark.ml.feature import StringIndexer,VectorAssembler
-from pyspark.ml import Pipeline, PipelineModel
+from pyspark.ml import Pipeline
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from pyspark.ml.classification import NaiveBayes
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder 
@@ -31,10 +64,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-# Create data
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
+# In[ ]:
 
+
+# create dataframe
 
 def create_dataframe(path, num_rows=None):
     """
@@ -75,6 +108,8 @@ def create_dataframe(path, num_rows=None):
         .config("spark.sql.debug.maxToStringFields", "100") \
         .appName("InterPro").getOrCreate()
 
+    # # Set the Spark log level
+    # spark.sparkContext.setLogLevel("WARN")
 
     df = spark.read.option("sep", "\t").option("header", "False").csv(path, schema=schema)
 
@@ -85,7 +120,20 @@ def create_dataframe(path, num_rows=None):
     return df
 
 
-# data preprocessing
+# path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
+# data = create_dataframe(path, num_rows=None)
+# # get the number of rows
+# print("Number of rows: ", data.count())
+# data.show(5)
+
+
+# In[ ]:
+
+
+# preprocess data
+from pyspark.sql.functions import col, abs, when, max
+
+
 def data_preprocessing(df):
     """
     It will help you to finish preprocessing data.
@@ -116,11 +164,25 @@ def data_preprocessing(df):
         "Score","Status","Date","InterPro_annotations_description","GO_annotations",
         "Pathways_annotations","Ratio","Size","Stop_location","Start_location","Sequence_length")
     large_df = large_df.drop(*columns)
-    print("data preprocessing finished")
     
+    print("data preprocessing finished")
     return small_df, large_df
 
+# Example usage:
+# small_df, large_df = data_preprocessing(data)
 
+# # Show the first few rows of small_df and large_df
+# print("Number of rows in small_df: ", small_df.count())
+# small_df.show(5)
+# print("Number of rows in small_df: ", large_df.count())
+# large_df.show(5)
+
+
+
+# In[ ]:
+
+
+# ml df created
 def ML_df_create(small_df,large_df):
     """
     It will help you to create a correct ML dataframe.
@@ -144,8 +206,20 @@ def ML_df_create(small_df,large_df):
     print("ML dataframe created")
     return ML_final
 
+# ml_final = ML_df_create(small_df, large_df)
+# print("Number of rows in ml_final: ", ml_final.count())
+# ml_final.show(5)
 
-# creating a training and testing dataset with a 70/30 split
+
+# ## Machine learning
+# Testing machine learning models to predict large InterPro_annotations_accession by small InterPro_annotations_accession.
+# From earlier papers and communication was found that naivebayes was a strong contenteder for this problem. and therefore i will continue using this model with further testing.
+# 
+
+# In[ ]:
+
+
+# splitting machine learningdata into training and test sets
 def split_data(ML_final, percentage=0.7, seed=42):
     """
     Split the data into training and test sets.
@@ -166,6 +240,19 @@ def split_data(ML_final, percentage=0.7, seed=42):
     return trainData, testData
 
 
+# train_data, test_data = split_data(ml_final,percentage=0.7)
+# train_data.show(5)
+
+
+# Naive bayes 
+
+# In[ ]:
+
+
+# import time
+# from pyspark.ml.classification import NaiveBayes
+# from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+# from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
 
 def train_and_evaluate_naive_bayes_with_cv(model_type, train_data, test_data, output_file):
     # Create the NaiveBayes model with the specified model type
@@ -221,6 +308,14 @@ def train_and_evaluate_naive_bayes_with_cv(model_type, train_data, test_data, ou
     
     return cv_model, nb_model
 
+# # Example usage:
+# cv_model, nb_model = train_and_evaluate_naive_bayes_with_cv("multinomial", train_data, test_data, "nb_multinomial_cv_results.txt")
+
+
+# In[ ]:
+
+
+from pyspark.ml import PipelineModel
 
 def save_spark_model(model, file_path):
     """
@@ -234,8 +329,16 @@ def save_spark_model(model, file_path):
         None
     """
     model.save(file_path)
+    print(f"Model saved to {file_path}")
         
-        
+# save_spark_model(cv_model, "cv_multinomial_model.pkl")
+
+
+# In[ ]:
+
+
+import pandas as pd
+
 def save_dataframe_as_csv(dataframe, file_path):
     """
     Save a Spark DataFrame as a CSV file.
@@ -252,11 +355,20 @@ def save_dataframe_as_csv(dataframe, file_path):
     
     # Save Pandas DataFrame as CSV
     pandas_df.to_csv(file_path, index=False)
+    print(f"DataFrame saved to {file_path}")
+
+# Example usage:
+# Assuming you have a Spark DataFrame 'train_data' and want to save it as 'train_data.csv'
+# Replace 'train_data' and 'train_data.csv' with your DataFrame and desired file path.
+# save_dataframe_as_csv(train_data, 'train_data.csv')
+
+
+# In[ ]:
 
 
 def main():
     path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
-    data = create_dataframe(path, num_rows=None)
+    data = create_dataframe(path, num_rows=100000)
     small_df, large_df = data_preprocessing(data)
     ml_final = ML_df_create(small_df, large_df)
     train_data, test_data = split_data(ml_final,percentage=0.7)
@@ -271,7 +383,72 @@ def main():
     save_dataframe_as_csv(train_data, '/students/2021-2022/master/DaanSteur_DSLS/train_data.csv')
     save_dataframe_as_csv(test_data, '/students/2021-2022/master/DaanSteur_DSLS/test_data.csv')
 
+main()
 
 
-if __name__ == '__main__':
-    main()
+# data analysis
+
+# In[ ]:
+
+
+# import matplotlib.pyplot as plt
+# import numpy as np
+# import seaborn as sns
+# import pandas as pd
+
+# # Assuming you have a PySpark DataFrame named large_proteins and small_proteins
+# # Select the feature_Length column and convert it to a NumPy array
+# large_feature_lengths = large_proteins.select('feature_Length').rdd.flatMap(lambda x: x).collect()
+# small_feature_lengths = small_proteins.select('feature_Length').rdd.flatMap(lambda x: x).collect()
+
+# # Create subplots with a shared y-axis in a 2x2 grid
+# fig, axs = plt.subplots(2, 2, figsize=(12, 10), sharey='row')
+
+# # Customize the style of the histograms
+# color_large = 'lightgreen'
+# color_small = 'orange'
+# bins = 20
+
+# # Plot for small_proteins
+# axs[0, 0].set_title('Histogram showing the feature length of small Interpro accession')
+# axs[0, 0].set_xlabel('Feature length (Start-Stop)')
+# axs[0, 0].set_ylabel('Frequency')
+# axs[0, 0].hist(small_feature_lengths, bins=bins, color=color_small, edgecolor='black', alpha=0.7)
+
+# # Plot for large_proteins
+# axs[0, 1].set_title('Histogram showing the feature length of large Interpro accession')
+# axs[0, 1].set_xlabel('Feature length (Start-Stop)')
+# axs[0, 1].set_ylabel('Frequency')
+# axs[0, 1].hist(large_feature_lengths, bins=bins, color=color_large, edgecolor='black', alpha=0.7)
+
+
+
+# # Add gridlines
+# for ax in axs[:, 0]:
+#     ax.grid(axis='y', linestyle='--', alpha=0.5)
+
+# # Convert PySpark DataFrames to Pandas DataFrames
+# large_df = large_proteins.toPandas()
+# small_df = small_proteins.toPandas()
+
+# # Set Seaborn theme and style
+# sns.set_theme(style="whitegrid")
+
+# # Plot for small_proteins with light green color
+# sns.boxplot(x=small_df["feature_Length"], ax=axs[1, 1], color='lightgreen')
+# axs[1, 0].set_title('Boxplot of small Interpro accessions')
+# axs[1, 0].set_ylabel('Feature Length')
+
+# # Plot for large_proteins with orange color
+# sns.boxplot(x=large_df["feature_Length"], ax=axs[1, 0], color='orange')
+# axs[1, 1].set_title('Boxplot of large Interpro accessions')
+# axs[1, 1].set_ylabel('Feature Length')
+
+# # Adjust spacing between subplots
+# plt.tight_layout()
+
+# # plt.savefig('protein_analys_plots.png')
+
+# # Show the combined plot
+# plt.show()
+
