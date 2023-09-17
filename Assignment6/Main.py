@@ -65,7 +65,6 @@ def create_dataframe(path, num_rows=None):
         StructField("Pathways_annotations", StringType(), True)
     ])
     
-    
     # Configure logging to store logs in a file
     logging.basicConfig(filename='/students/2021-2022/master/DaanSteur_DSLS/spark_logs.txt', level=logging.INFO)
 
@@ -75,8 +74,11 @@ def create_dataframe(path, num_rows=None):
         .config("spark.sql.debug.maxToStringFields", "100") \
         .appName("InterPro").getOrCreate()
 
-
-    df = spark.read.option("sep", "\t").option("header", "False").csv(path, schema=schema)
+    # Read the CSV file into a DataFrame
+    df = spark.read \
+        .option("sep", "\t") \
+        .option("header", "False") \
+        .csv(path, schema=schema)
 
     # If num_rows is None, process the entire file
     if num_rows is not None:
@@ -96,9 +98,9 @@ def data_preprocessing(df):
     # get the length of protein
     # get the ratio to distinguish them to large and small InterPro_annotations_accession
     # 1 for large, 0 for small InterPro_annotations_accession
-    df = df.filter(df.InterPro_annotations_accession != "-")\
-        .withColumn("Ratio", (abs(df["Stop_location"] - df["Start_location"])/df["Sequence_length"]))\
-        .withColumn("Size", when((abs(df["Stop_location"] - df["Start_location"])/df["Sequence_length"])>0.9,1).otherwise(0))
+    df = df.filter(df.InterPro_annotations_accession != "-") \
+        .withColumn("Ratio", (abs(df["Stop_location"] - df["Start_location"]) / df["Sequence_length"])) \
+        .withColumn("Size", when((abs(df["Stop_location"] - df["Start_location"]) / df["Sequence_length"])>0.9,1).otherwise(0))
 
     # get the intersection to make sure there is a match of large and small InterPro_annotations_accession(at least one large and one small InterPro_annotations_accession)
     intersection = df.filter(df.Size == 0).select("Protein_accession").intersect(df.filter(df.Size == 1).select("Protein_accession"))
@@ -115,13 +117,14 @@ def data_preprocessing(df):
     columns = ("Sequence_MD5_digest","Analysis","Signature_accession","Signature_description",
         "Score","Status","Date","InterPro_annotations_description","GO_annotations",
         "Pathways_annotations","Ratio","Size","Stop_location","Start_location","Sequence_length")
-    large_df = large_df.drop(*columns)
-    print("data preprocessing finished")
     
+    large_df = large_df.drop(*columns)
+    
+    print("data preprocessing finished")
     return small_df, large_df
 
 
-def ML_df_create(small_df,large_df):
+def final_ml_df_create(small_df, large_df):
     """
     It will help you to create a correct ML dataframe.
     small_df: spark df, preprocessing to fit the criteria ratio<=0.9
@@ -129,24 +132,24 @@ def ML_df_create(small_df,large_df):
     return ML_df
     """
     # Create the df for ML, we do not need Protein_accession anymore.
-    ML_df = large_df.join(small_df,["Protein_accession"],"outer").fillna(0).drop("Protein_accession")
+    ml_final = large_df.join(small_df,["Protein_accession"],"outer").fillna(0).drop("Protein_accession")
 
     # catalogize y variable
     Label = StringIndexer(inputCol="InterPro_annotations_accession", outputCol="InterPro_index")
 
     # catalogize X variable
-    input_columns = ML_df.columns[1:]
+    input_columns = ml_final.columns[1:]
     assembler = VectorAssembler(inputCols=input_columns,outputCol="InterPro_features")
-
+    # create pipeline for ml dataframe creation
     pipeline = Pipeline(stages=[Label,assembler])
-    ML_final = pipeline.fit(ML_df).transform(ML_df)
+    ml_final = pipeline.fit(ml_final).transform(ml_final)
     
     print("ML dataframe created")
-    return ML_final
+    return ml_final
 
 
 # creating a training and testing dataset with a 70/30 split
-def split_data(ML_final, percentage=0.7, seed=42):
+def splitting_data(ml_final, percentage=0.7, seed=42):
     """
     Split the data into training and test sets.
 
@@ -158,12 +161,11 @@ def split_data(ML_final, percentage=0.7, seed=42):
     Returns:
         DataFrame, DataFrame: The training and test DataFrames.
     """
-    trainData, testData = ML_final.randomSplit([percentage, 1 - percentage], seed=seed)
+    train_data, test_data = ml_final.randomSplit([percentage, 1 - percentage], seed=seed)
     
-    print(f"Number of rows in trainData: {trainData.count()}, Number of rows in testData: {testData.count()}")
-    
+    print(f"Number of rows in trainData: {train_data.count()}, Number of rows in testData: {test_data.count()}")
     print("Data split into training and test sets")
-    return trainData, testData
+    return train_data, test_data 
 
 
 
@@ -174,7 +176,7 @@ def train_and_evaluate_naive_bayes_with_cv(model_type, train_data, test_data, ou
 
     # Define hyperparameter grid for smoothing
     param_grid = (ParamGridBuilder()
-                  .addGrid(nb_model.smoothing, [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0])
+                  .addGrid(nb_model.smoothing, [0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0])
                   .build())
 
     # Create a MulticlassClassificationEvaluator
@@ -234,6 +236,7 @@ def save_spark_model(model, file_path):
         None
     """
     model.save(file_path)
+    print(f"Saved model to {file_path}")
         
         
 def save_dataframe_as_csv(dataframe, file_path):
@@ -252,14 +255,17 @@ def save_dataframe_as_csv(dataframe, file_path):
     
     # Save Pandas DataFrame as CSV
     pandas_df.to_csv(file_path, index=False)
+    print(f"Saved DataFrame to {file_path}")
 
 
-def main():
-    path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
+def main(path):
     data = create_dataframe(path, num_rows=None)
     small_df, large_df = data_preprocessing(data)
-    ml_final = ML_df_create(small_df, large_df)
-    train_data, test_data = split_data(ml_final,percentage=0.7)
+    ml_final = final_ml_df_create(small_df, large_df)
+    train_data, test_data = splitting_data(ml_final, percentage=0.7)
+    save_dataframe_as_csv(train_data, '/students/2021-2022/master/DaanSteur_DSLS/train_data.csv')
+    save_dataframe_as_csv(test_data, '/students/2021-2022/master/DaanSteur_DSLS/test_data.csv')
+    
     cv_model, nb_model = train_and_evaluate_naive_bayes_with_cv("multinomial", train_data, test_data, "/students/2021-2022/master/DaanSteur_DSLS/nb_multinomial_cv_results.txt")
     save_spark_model(nb_model, '/students/2021-2022/master/DaanSteur_DSLS/nb_model_multinomial.pkl')
     save_spark_model(cv_model, '/students/2021-2022/master/DaanSteur_DSLS/cv_model_multinomial.pkl')
@@ -268,10 +274,8 @@ def main():
     save_spark_model(nb_model, '/students/2021-2022/master/DaanSteur_DSLS/nb_model_gaussian.pkl')
     save_spark_model(cv_model, '/students/2021-2022/master/DaanSteur_DSLS/cv_model_gaussian.pkl')
     
-    save_dataframe_as_csv(train_data, '/students/2021-2022/master/DaanSteur_DSLS/train_data.csv')
-    save_dataframe_as_csv(test_data, '/students/2021-2022/master/DaanSteur_DSLS/test_data.csv')
-
 
 
 if __name__ == '__main__':
-    main()
+    path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
+    main(path=path)
