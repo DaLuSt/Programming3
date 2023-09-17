@@ -275,7 +275,6 @@ def main(path):
     save_spark_model(cv_model, '/students/2021-2022/master/DaanSteur_DSLS/cv_model_gaussian.pkl')
     
 
-
 if __name__ == '__main__':
     path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
     main(path=path)
