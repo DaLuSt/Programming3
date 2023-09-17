@@ -368,23 +368,25 @@ def save_dataframe_as_csv(dataframe, file_path):
 
 def main():
     path = "/data/dataprocessing/interproscan/all_bacilli.tsv"
-    data = create_dataframe(path, num_rows=5000)
+    data = create_dataframe(path, num_rows=None)
     small_df, large_df = data_preprocessing(data)
     ml_final = ML_df_create(small_df, large_df)
     train_data, test_data = split_data(ml_final,percentage=0.7)
     save_dataframe_as_csv(train_data, '/students/2021-2022/master/DaanSteur_DSLS/train_data.csv')
     save_dataframe_as_csv(test_data, '/students/2021-2022/master/DaanSteur_DSLS/test_data.csv')
     
-    cv_model, nb_model = train_and_evaluate_naive_bayes_with_cv("multinomial", train_data, test_data, "/students/2021-2022/master/DaanSteur_DSLS/nb_multinomial_cv_results.txt")
-    save_spark_model(nb_model, '/students/2021-2022/master/DaanSteur_DSLS/nb_model_multinomial.pkl')
-    save_spark_model(cv_model, '/students/2021-2022/master/DaanSteur_DSLS/cv_model_multinomial.pkl')
     
-    cv_model, nb_model = train_and_evaluate_naive_bayes_with_cv("gaussian", train_data, test_data, "/students/2021-2022/master/DaanSteur_DSLS/nb_gaussian_cv_results.txt")
-    save_spark_model(nb_model, '/students/2021-2022/master/DaanSteur_DSLS/nb_model_gaussian.pkl')
-    save_spark_model(cv_model, '/students/2021-2022/master/DaanSteur_DSLS/cv_model_gaussian.pkl')
+    # save_dataframe_as_csv(train_data, '/students/2021-2022/master/DaanSteur_DSLS/train_data.csv')
+    # save_dataframe_as_csv(test_data, '/students/2021-2022/master/DaanSteur_DSLS/test_data.csv')
     
-    save_dataframe_as_csv(train_data, '/students/2021-2022/master/DaanSteur_DSLS/train_data.csv')
-    save_dataframe_as_csv(test_data, '/students/2021-2022/master/DaanSteur_DSLS/test_data.csv')
+    # cv_model, nb_model = train_and_evaluate_naive_bayes_with_cv("multinomial", train_data, test_data, "/students/2021-2022/master/DaanSteur_DSLS/nb_multinomial_cv_results.txt")
+    # save_spark_model(nb_model, '/students/2021-2022/master/DaanSteur_DSLS/nb_model_multinomial.pkl')
+    # save_spark_model(cv_model, '/students/2021-2022/master/DaanSteur_DSLS/cv_model_multinomial.pkl')
+    
+    # cv_model, nb_model = train_and_evaluate_naive_bayes_with_cv("gaussian", train_data, test_data, "/students/2021-2022/master/DaanSteur_DSLS/nb_gaussian_cv_results.txt")
+    # save_spark_model(nb_model, '/students/2021-2022/master/DaanSteur_DSLS/nb_model_gaussian.pkl')
+    # save_spark_model(cv_model, '/students/2021-2022/master/DaanSteur_DSLS/cv_model_gaussian.pkl')
+    
 
 main()
 
