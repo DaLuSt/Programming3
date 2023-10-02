@@ -34,7 +34,7 @@ To successfully complete this assignment, this script should be able to take one
 To execute the script, navigate to your terminal and use the following command:
 
 ```
-python3 Assignment7.py
+python3 Assignment7.py [file_limit] (file_limit is optional)
 ```
 
 ### output
