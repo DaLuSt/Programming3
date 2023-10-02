@@ -160,8 +160,16 @@ def main(input_directory, file_limit=None):
 
 if __name__ == "__main__":
     input_dir = "/data/datasets/NCBI/PubMed/"
-    # Set this to the desired file limit, or None to parse all files
-    file_limit = sys.argv[1] if len(sys.argv) > 1 else None
-    # file_limit = 10
+    
+    # Check if the file limit is provided as a command line argument
+    if len(sys.argv) > 1:
+        try:
+            file_limit = int(sys.argv[1])
+        except ValueError:
+            print("Invalid file limit. Please provide an integer.")
+            sys.exit(1)
+    else:
+        # If no file limit is provided, set it to None to parse all files
+        file_limit = None
 
     main(input_dir, file_limit)
