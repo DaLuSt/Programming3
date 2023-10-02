@@ -1,4 +1,4 @@
-## Assignment 7: Portein function prediction with supervised learning
+## Assignment 7: XML Parsing with PySpark and key information extraction from research articles.
 In the ever-expanding realm of bioinformatics and biomedical research, extracting information from vast repositories of scientific literature is a crucial task. Assignment 7 is set on an exciting journey into the world of data science and natural language processing. The objective being to use PySpark to parse PubMed XML files and extract key information from research articles. 
 
 ### Introduction
