@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Title: Replacement Assignment XML parser
+Title: Replacement Assignment
 Author: Daan Steur
 Date: 05/10/2023
 Description: This script parses a PubMed XML file using PySpark and processes the data to obtain key information from research articles.
@@ -83,7 +83,7 @@ def create_articles_dataframe(spark, input_directory, file_limit=None):
                     pub_year = article.find(".//PubDate/Year").text if article.find(".//PubDate/Year") is not None else "Unknown"
                     title = article.find(".//ArticleTitle").text
                     journal_title = article.find(".//Journal/Title").text
-                    abstract = article.find(".//Abstract")
+                    abstract = article.find(".//Abstract/AbstractText")
                     abstract_text = abstract.text if abstract is not None else ""
                     
                     # Extract references if available
@@ -127,7 +127,7 @@ def save_dataframe_as_csv(dataframe, output_path):
         print(f"Error saving DataFrame as CSV: {str(e)}")
 
 
-def create_and_save_questions_dataframes(articles_df):
+def create_and_save_analysis_dataframes(articles_df):
     """
     Creates and saves analysis DataFrames based on the provided article DataFrame.
 
@@ -152,14 +152,13 @@ def create_and_save_questions_dataframes(articles_df):
         print(f"Error creating and saving analysis DataFrames: {str(e)}")
 
     
-def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
+def combine_csv_files(input_folder, output_file):
     """
-    Combines multiple CSV files into a single CSV file and deletes all files in a folder except the combined CSV file.
+    Combines multiple CSV files into a single CSV file.
 
     Args:
         input_folder (str): Path to the folder containing CSV files to be combined.
         output_file (str): Path to the output combined CSV file.
-        combined_csv_filename (str): Name of the combined CSV file to be retained.
     """
     try:
         # Get a list of all CSV files in the input folder
@@ -185,55 +184,39 @@ def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
         # Save the combined DataFrame to the output CSV file
         combined_df.to_csv(output_file, index=False)
         print(f"Combined data saved to {output_file}")
+    except Exception as e:
+        print(f"Error combining CSV files: {str(e)}")
 
-        # Delete all files in the folder except the combined CSV file
-        for filename in os.listdir(input_folder):
+    
+def delete_files_except_combined_csv(folder_path, combined_csv_filename):
+    """
+    Deletes all files in a folder except the combined CSV file.
+
+    Args:
+        folder_path (str): Path to the folder containing files to be deleted.
+        combined_csv_filename (str): Name of the combined CSV file to be retained.
+    """
+    try:
+        for filename in os.listdir(folder_path):
             if filename != combined_csv_filename:
-                file_path = os.path.join(input_folder, filename)
+                file_path = os.path.join(folder_path, filename)
                 if os.path.isfile(file_path):
                     os.remove(file_path)
         print(f"Deleted all files except {combined_csv_filename}")
     except Exception as e:
-        print(f"Error combining and deleting files: {str(e)}")
-
-def csv_name_change_logfile_delete(folder, new_name, confirm_logfile_delete="y"):
-    """
-    Rename CSV files in the specified folder to the new name and optionally delete other files.
-
-    Args:
-        folder (str): The path to the folder containing CSV files.
-        new_name (str): The new name to assign to CSV files.
-        confirm_logfile_delete (str, optional): A confirmation prompt for deleting other files.
-            Defaults to "y". Set to "n" to skip deletion.
-
-    Returns:
-        None
-    """
-    for filename in os.listdir(folder):
-        if filename.endswith(".csv"):
-            old_path = os.path.join(folder, filename)
-            new_path = os.path.join(folder, new_name)
-            os.rename(old_path, new_path)
-            print(f"Renamed {old_path} to {new_path}")
-
-    # Ask the user for confirmation before deleting files
-    if confirm_logfile_delete == "y":
-        for filename in os.listdir(folder):
-            file_path = os.path.join(folder, filename)
-            if os.path.isfile(file_path) and filename != new_name:
-                os.remove(file_path)
-        print(f"Deleted all files except {new_name}")
-    else:
-        print("Files were not deleted.")
+        print(f"An error occurred while deleting files: {str(e)}")
 
 
 def main(input_directory, file_limit=None):
-    try:
-        # Define folder paths and filenames
-        parsed_data_folder = "output/parsed_data"
-        output_file = os.path.join(parsed_data_folder, "combined_data.csv")
-        combined_csv_filename = "combined_data.csv"
+    """
+    Main function to execute the PubMed XML data parsing and processing.
 
+    Args:
+        input_directory (str): Path to the directory containing PubMed XML files.
+        file_limit (int): Limit for the number of files to process (optional).
+    """
+    try:
+        time_start = time.time()
         # Initialize a Spark session
         spark = create_spark_session("PubMedXMLParser")
 
@@ -241,31 +224,32 @@ def main(input_directory, file_limit=None):
         articles_df = create_articles_dataframe(spark, input_directory, file_limit)
 
         # Save the entire DataFrame to a single CSV file
-        save_dataframe_as_csv(articles_df, parsed_data_folder)
-        print("Parsed data saved to CSV files.")
+        save_dataframe_as_csv(articles_df, "output/parsed_data")
 
         # Create and save analysis DataFrames
-        create_and_save_questions_dataframes(articles_df)
-        print("Analysis DataFrames created and saved.")
-
-        # Combine output CSV files and delete all files except the combined CSV file
-        combine_and_delete_files(parsed_data_folder, output_file, combined_csv_filename)
-        print(f"Combined data saved to {output_file}.")
+        create_and_save_analysis_dataframes(articles_df)
         
-        # Rename the CSV files and delete all files except the renamed CSV files
-        csv_name_change_logfile_delete("output/abstract_lengths", "abstract_lengths.csv", confirm_logfile_delete="y")
-        csv_name_change_logfile_delete("output/author_counts", "author_counts.csv", confirm_logfile_delete="y")
-        csv_name_change_logfile_delete("output/journal_year_counts", "journal_year_counts.csv", confirm_logfile_delete="y")
-        csv_name_change_logfile_delete("output/year_counts", "year_counts.csv", confirm_logfile_delete="y")
+        input_folder = "output/parsed_data"
+        output_file = "output/parsed_data/combined_data.csv"
+        combine_csv_files(input_folder, output_file)
+        
+        
+        combined_csv_filename = "combined_data.csv"
+        delete_files_except_combined_csv(input_folder, combined_csv_filename)
 
         # Stop the Spark session
         spark.stop()
+        time_stop = time.time()
+        print(f"Total execution time: {time_stop - time_start} seconds")
+        
     except Exception as e:
         print(f"An error occurred in the main function: {str(e)}")
+    
 
 if __name__ == "__main__":
+    input_folder = "output/parsed_data"
     input_dir = "/data/datasets/NCBI/PubMed/"
-
+    
     # Check if the file limit is provided as a command line argument
     if len(sys.argv) > 1:
         try:
