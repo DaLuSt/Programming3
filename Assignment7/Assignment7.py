@@ -8,6 +8,7 @@ Usage: python3 Assignment7.py [file_limit] (file_limit is optional)
 """
 
 import os
+import time
 import sys
 import pandas as pd
 import xml.etree.ElementTree as ET
@@ -260,5 +261,5 @@ if __name__ == "__main__":
     else:
         # If no file limit is provided, set it to None to parse all files
         file_limit = None
-
+        
     main(input_dir, file_limit)
