@@ -4,7 +4,7 @@ Title: Replacement Assignment XML parser
 Author: Daan Steur
 Date: 05/10/2023
 Description: This script parses a PubMed XML file using PySpark and processes the data to obtain key information from research articles.
-Usage: python3 Assignment7.py [file_limit] (file_limit is optional)
+Usage: python3 Assignment7.py [file_limit] (file_limit is optional, standard is 1)
 """
 
 import os
@@ -73,7 +73,6 @@ def create_articles_dataframe(spark, input_directory, file_limit=1):
             StructField("Year", StringType(), nullable=True),
             StructField("Title", StringType(), nullable=True),
             StructField("JournalTitle", StringType(), nullable=True),
-            StructField("Abstract", StringType(), nullable=True),
             StructField("AbstractLength", IntegerType(), nullable=True),
             StructField("References", StringType(), nullable=True)
         ])
@@ -113,7 +112,8 @@ def create_articles_dataframe(spark, input_directory, file_limit=1):
 
                     references = [ref.text for ref in article.findall(".//PubmedData/ReferenceList/Reference/ArticleIdList/ArticleId[@IdType='pubmed']")]
 
-                    article_data.append((pubmed_id_text, first_author_text, last_author_text, pub_year_text, title_text, journal_title_text, abstract_text, abstract_length, references))
+                    # Append data excluding "AbstractText" to the DataFrame
+                    article_data.append((pubmed_id_text, first_author_text, last_author_text, pub_year_text, title_text, journal_title_text, abstract_length, references))
 
                 articles_df = articles_df.union(
                     spark.createDataFrame(article_data, schema=schema)
@@ -222,12 +222,12 @@ def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
         combined_df.to_csv(output_file, index=False)
         print(f"Combined data saved to {output_file}")
 
-        # Delete all files in the folder except the combined CSV file
-        for filename in os.listdir(input_folder):
-            file_path = os.path.join(input_folder, filename)
-            if os.path.isfile(file_path) and filename != combined_csv_filename:
-                os.remove(file_path)
-        print(f"Deleted all files except {combined_csv_filename}")
+        # # Delete all files in the folder except the combined CSV file
+        # for filename in os.listdir(input_folder):
+        #     file_path = os.path.join(input_folder, filename)
+        #     if os.path.isfile(file_path) and filename != combined_csv_filename:
+        #         os.remove(file_path)
+        # print(f"Deleted all files except {combined_csv_filename}")
     except Exception as e:
         raise Exception(f"Error combining and deleting files: {str(e)}")
         
