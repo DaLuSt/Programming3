@@ -9,10 +9,12 @@ Usage: python3 Assignment7.py [file_limit] (file_limit is optional, standard is 
 
 import os
 import sys
+import time
 import pandas as pd
 import xml.etree.ElementTree as ET
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, min, max, avg
+from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
 def create_spark_session(app_name, num_executors=16, executor_cores=16, executor_memory='128g', driver_memory='128g'):
@@ -157,19 +159,23 @@ def create_and_save_analysis_dataframes(articles_df):
     try:
         # Calculate author counts
         author_counts = articles_df.groupBy("FirstAuthor").count().alias("ArticleCountPerAuthor")
+        # Sort by count in descending order
+        author_counts = author_counts.orderBy(F.desc("count"))
 
         # Calculate year-wise article counts
         year_counts = articles_df.groupBy("Year").count().alias("ArticleCountPerYear")
-        
+
         # Calculate min, max, and average of AbstractLength column
         abstract_lengths = articles_df.agg(
-            min(col("AbstractLength")).alias("MinAbstractLength"),
-            max(col("AbstractLength")).alias("MaxAbstractLength"),
-            avg(col("AbstractLength")).alias("AvgAbstractLength")
+            F.min(col("AbstractLength")).alias("MinAbstractLength"),
+            F.max(col("AbstractLength")).alias("MaxAbstractLength"),
+            F.avg(col("AbstractLength")).alias("AvgAbstractLength")
         )
-        
+
         # Calculate journal and year-wise article counts
         journal_year_counts = articles_df.groupBy("JournalTitle", "Year").count().alias("ArticleCountPerJournalTitlePerYear")
+        # Sort by count in descending order
+        journal_year_counts = journal_year_counts.orderBy(F.desc("count"))
 
         # Save the DataFrames to CSV files
         save_dataframe_as_csv(author_counts, "output/author_counts")
@@ -182,22 +188,14 @@ def create_and_save_analysis_dataframes(articles_df):
         print(f"Error creating and saving analysis DataFrames: {str(e)}")
 
 
-    
-# import os
-# import pandas as pd
-# import pd.errors
-from typing import List
-
-def combine_and_delete_files(input_folder: str, output_file: str, combined_csv_filename: str, keep_error_files: bool = False):
+def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
     """
-    Combines multiple CSV files into a single CSV file and deletes successfully parsed files in a folder
-    except the combined CSV file.
+    Combines multiple CSV files into a single CSV file and deletes all files in a folder except the combined CSV file.
 
     Args:
         input_folder (str): Path to the folder containing CSV files to be combined.
         output_file (str): Path to the output combined CSV file.
         combined_csv_filename (str): Name of the combined CSV file to be retained.
-        keep_error_files (bool, optional): If True, keep files with parsing errors, otherwise delete them.
 
     Raises:
         Exception: An error occurred during file processing.
@@ -206,52 +204,35 @@ def combine_and_delete_files(input_folder: str, output_file: str, combined_csv_f
         >>> combine_and_delete_files("/path/to/csv/files", "output/combined_data.csv", "combined_data.csv")
     """
     try:
-        # Get a list of all files in the input folder
-        all_files = os.listdir(input_folder)
+        # Get a list of all CSV files in the input folder
+        csv_files = [f for f in os.listdir(input_folder) if f.endswith(".csv")]
 
-        if not all_files:
-            print("No files found in the input folder.")
+        if not csv_files:
+            print("No CSV files found in the input folder.")
             return
 
         # Initialize an empty DataFrame to store the combined data
         combined_df = pd.DataFrame()
 
-        # Keep track of successfully parsed and error files
-        parsed_files = []
-        error_files = []
-
-        # Iterate over each file
-        for filename in all_files:
-            file_path = os.path.join(input_folder, filename)
-
-            # Skip if it's not a CSV file
-            if not filename.endswith(".csv"):
-                if not keep_error_files:
-                    # Delete non-CSV files
-                    os.remove(file_path)
-                    print(f"Deleted non-CSV file: {filename}")
-                continue
-
+        # Iterate over each CSV file and concatenate them
+        for csv_file in csv_files:
+            csv_path = os.path.join(input_folder, csv_file)
             try:
-                df = pd.read_csv(file_path)
+                df = pd.read_csv(csv_path)
                 combined_df = pd.concat([combined_df, df], ignore_index=True)
-                parsed_files.append(filename)
             except pd.errors.ParserError:
-                error_files.append(filename)
-                print(f"Skipping file {filename} due to parsing error.")
+                print(f"Skipping file {csv_file} due to parsing error.")
 
         # Save the combined DataFrame to the output CSV file
         combined_df.to_csv(output_file, index=False)
         print(f"Combined data saved to {output_file}")
 
-        # Delete successfully parsed files if keep_error_files is False
-        if not keep_error_files:
-            for filename in parsed_files:
-                file_path = os.path.join(input_folder, filename)
-                if filename != combined_csv_filename:
-                    os.remove(file_path)
-            print(f"Deleted successfully parsed files except {combined_csv_filename}")
-
+        # Delete all files in the folder except the combined CSV file
+        for filename in os.listdir(input_folder):
+            file_path = os.path.join(input_folder, filename)
+            if os.path.isfile(file_path) and filename != combined_csv_filename:
+                os.remove(file_path)
+        print(f"Deleted all files except {combined_csv_filename}")
     except Exception as e:
         raise Exception(f"Error combining and deleting files: {str(e)}")
 
@@ -299,6 +280,7 @@ def csv_name_change_logfile_delete(folder, new_name, confirm_logfile_delete="y")
 
 def main(input_directory, file_limit = 1):
     try:
+        start_time = time.time()
         # create output folder if it does not exist
         if not os.path.exists("output"):
             os.makedirs("output")
@@ -332,11 +314,13 @@ def main(input_directory, file_limit = 1):
 
         # Stop the Spark session
         spark.stop()
+        
+        end_time = time.time()
+        print(f"Total time taken: {end_time - start_time} seconds")
     except Exception as e:
         print(f"An error occurred in the main function: {str(e)}")
 
 if __name__ == "__main__":
-
     # Check if the file limit is provided as a command line argument
     if len(sys.argv) > 1:
         try:
@@ -345,7 +329,9 @@ if __name__ == "__main__":
             print("Invalid file limit. Please provide an integer.")
             sys.exit(1)
     else:
-        # If no file limit is provided, set it to None to parse all files
-        file_limit = None
+        # If no file limit is provided, set it to 1 as the default value
+        file_limit = 1
+    # print number of xml files that is about to be parsed
+    print(f"Number of files to be parsed: {file_limit}")
 
     main("/data/datasets/NCBI/PubMed/", file_limit)
