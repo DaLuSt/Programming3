@@ -4,7 +4,7 @@ Title: Replacement Assignment XML parser
 Author: Daan Steur
 Date: 05/10/2023
 Description: This script parses a PubMed XML file using PySpark and processes the data to obtain key information from research articles.
-Usage: python3 Assignment7.py [file_limit] (file_limit is optional, standard is 1)
+Usage: python3 Assignment7.py [file_limit] (file_limit is optional / default is 1)
 """
 
 import os
@@ -316,7 +316,8 @@ def main(input_directory, file_limit = 1):
         spark.stop()
         
         end_time = time.time()
-        print(f"Total time taken: {end_time - start_time} seconds")
+        # time in hours, minutes and seconds
+        print(f"time elapsed: {time.strftime('%H:%M:%S', time.gmtime(end_time - start_time))}")
     except Exception as e:
         print(f"An error occurred in the main function: {str(e)}")
 
@@ -334,4 +335,4 @@ if __name__ == "__main__":
     # print number of xml files that is about to be parsed
     print(f"Number of files to be parsed: {file_limit}")
 
-    main("/data/datasets/NCBI/PubMed/", file_limit)
+    main("/data/datasets/NCBI/PubMed/", file_limit) 
