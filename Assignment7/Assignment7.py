@@ -183,14 +183,21 @@ def create_and_save_analysis_dataframes(articles_df):
 
 
     
-def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
+# import os
+# import pandas as pd
+# import pd.errors
+from typing import List
+
+def combine_and_delete_files(input_folder: str, output_file: str, combined_csv_filename: str, keep_error_files: bool = False):
     """
-    Combines multiple CSV files into a single CSV file and deletes all files in a folder except the combined CSV file.
+    Combines multiple CSV files into a single CSV file and deletes successfully parsed files in a folder
+    except the combined CSV file.
 
     Args:
         input_folder (str): Path to the folder containing CSV files to be combined.
         output_file (str): Path to the output combined CSV file.
         combined_csv_filename (str): Name of the combined CSV file to be retained.
+        keep_error_files (bool, optional): If True, keep files with parsing errors, otherwise delete them.
 
     Raises:
         Exception: An error occurred during file processing.
@@ -199,38 +206,54 @@ def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
         >>> combine_and_delete_files("/path/to/csv/files", "output/combined_data.csv", "combined_data.csv")
     """
     try:
-        # Get a list of all CSV files in the input folder
-        csv_files = [f for f in os.listdir(input_folder) if f.endswith(".csv")]
+        # Get a list of all files in the input folder
+        all_files = os.listdir(input_folder)
 
-        if not csv_files:
-            print("No CSV files found in the input folder.")
+        if not all_files:
+            print("No files found in the input folder.")
             return
 
         # Initialize an empty DataFrame to store the combined data
         combined_df = pd.DataFrame()
 
-        # Iterate over each CSV file and concatenate them
-        for csv_file in csv_files:
-            csv_path = os.path.join(input_folder, csv_file)
+        # Keep track of successfully parsed and error files
+        parsed_files = []
+        error_files = []
+
+        # Iterate over each file
+        for filename in all_files:
+            file_path = os.path.join(input_folder, filename)
+
+            # Skip if it's not a CSV file
+            if not filename.endswith(".csv"):
+                if not keep_error_files:
+                    # Delete non-CSV files
+                    os.remove(file_path)
+                    print(f"Deleted non-CSV file: {filename}")
+                continue
+
             try:
-                df = pd.read_csv(csv_path)
+                df = pd.read_csv(file_path)
                 combined_df = pd.concat([combined_df, df], ignore_index=True)
+                parsed_files.append(filename)
             except pd.errors.ParserError:
-                print(f"Skipping file {csv_file} due to parsing error.")
+                error_files.append(filename)
+                print(f"Skipping file {filename} due to parsing error.")
 
         # Save the combined DataFrame to the output CSV file
         combined_df.to_csv(output_file, index=False)
         print(f"Combined data saved to {output_file}")
 
-        # # Delete all files in the folder except the combined CSV file
-        # for filename in os.listdir(input_folder):
-        #     file_path = os.path.join(input_folder, filename)
-        #     if os.path.isfile(file_path) and filename != combined_csv_filename:
-        #         os.remove(file_path)
-        # print(f"Deleted all files except {combined_csv_filename}")
+        # Delete successfully parsed files if keep_error_files is False
+        if not keep_error_files:
+            for filename in parsed_files:
+                file_path = os.path.join(input_folder, filename)
+                if filename != combined_csv_filename:
+                    os.remove(file_path)
+            print(f"Deleted successfully parsed files except {combined_csv_filename}")
+
     except Exception as e:
         raise Exception(f"Error combining and deleting files: {str(e)}")
-        
 
 def csv_name_change_logfile_delete(folder, new_name, confirm_logfile_delete="y"):
     """
