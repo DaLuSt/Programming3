@@ -16,6 +16,22 @@ from pyspark.sql.functions import col, min, max, avg
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
 def create_spark_session(app_name, num_executors=16, executor_cores=16, executor_memory='128g', driver_memory='128g'):
+    """
+    Create a Spark session with specified configurations.
+
+    Args:
+        app_name (str): Name for the Spark application.
+        num_executors (int, optional): Number of executor instances (default is 16).
+        executor_cores (int, optional): Number of CPU cores per executor (default is 16).
+        executor_memory (str, optional): Memory per executor (e.g., '128g' for 128 gigabytes, default is '128g').
+        driver_memory (str, optional): Memory for the driver (e.g., '128g' for 128 gigabytes, default is '128g').
+
+    Returns:
+        SparkSession: A Spark session, or None if an error occurs during session creation.
+
+    Example:
+        spark = create_spark_session("PubMedXMLParser", num_executors=16, executor_cores=16, executor_memory='128g', driver_memory='128g')
+    """
     try:
         spark = SparkSession.builder \
             .appName(app_name) \
@@ -30,7 +46,25 @@ def create_spark_session(app_name, num_executors=16, executor_cores=16, executor
         print(f"An error occurred while creating the Spark session: {str(e)}")
         return None
 
-def create_articles_dataframe(spark, input_directory, file_limit=None):
+def create_articles_dataframe(spark, input_directory, file_limit=1):
+    """
+    Parse PubMed XML files in the input directory and create a PySpark DataFrame.
+
+    Args:
+        spark (SparkSession): The Spark session.
+        input_directory (str): Path to the directory containing PubMed XML files.
+        file_limit (int, optional): Limit for the number of files to process (default is None).
+
+    Returns:
+        DataFrame: A PySpark DataFrame containing article data, or None if an error occurs.
+
+    Raises:
+        Exception: An error occurred during DataFrame creation.
+
+    Example:
+        spark = create_spark_session("PubMedXMLParser")
+        articles_df = create_articles_dataframe(spark, "/path/to/xml/files", file_limit=10)
+    """
     try:
         schema = StructType([
             StructField("PubMedID", StringType(), nullable=True),
@@ -105,14 +139,26 @@ def save_dataframe_as_csv(dataframe, output_path):
         
 def create_and_save_analysis_dataframes(articles_df):
     """
-    Creates and saves analysis DataFrames based on the provided article DataFrame.
+    Create and save analysis DataFrames based on the provided article DataFrame.
+
+    This function performs various analyses on the input DataFrame and saves the results as CSV files.
 
     Args:
         articles_df (DataFrame): The PySpark DataFrame containing article data.
+
+    Raises:
+        Exception: An error occurred during DataFrame creation or saving.
+
+    Example:
+        spark = create_spark_session("PubMedXMLParser")
+        articles_df = create_articles_dataframe(spark, "/path/to/xml/files", file_limit=10)
+        create_and_save_analysis_dataframes(articles_df)
     """
     try:
-        # Create the DataFrame to answer questions
+        # Calculate author counts
         author_counts = articles_df.groupBy("FirstAuthor").count().alias("ArticleCountPerAuthor")
+
+        # Calculate year-wise article counts
         year_counts = articles_df.groupBy("Year").count().alias("ArticleCountPerYear")
         
         # Calculate min, max, and average of AbstractLength column
@@ -122,6 +168,7 @@ def create_and_save_analysis_dataframes(articles_df):
             avg(col("AbstractLength")).alias("AvgAbstractLength")
         )
         
+        # Calculate journal and year-wise article counts
         journal_year_counts = articles_df.groupBy("JournalTitle", "Year").count().alias("ArticleCountPerJournalTitlePerYear")
 
         # Save the DataFrames to CSV files
@@ -134,6 +181,7 @@ def create_and_save_analysis_dataframes(articles_df):
     except Exception as e:
         print(f"Error creating and saving analysis DataFrames: {str(e)}")
 
+
     
 def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
     """
@@ -143,6 +191,12 @@ def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
         input_folder (str): Path to the folder containing CSV files to be combined.
         output_file (str): Path to the output combined CSV file.
         combined_csv_filename (str): Name of the combined CSV file to be retained.
+
+    Raises:
+        Exception: An error occurred during file processing.
+
+    Example:
+        >>> combine_and_delete_files("/path/to/csv/files", "output/combined_data.csv", "combined_data.csv")
     """
     try:
         # Get a list of all CSV files in the input folder
@@ -170,13 +224,13 @@ def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
 
         # Delete all files in the folder except the combined CSV file
         for filename in os.listdir(input_folder):
-            if filename != combined_csv_filename:
-                file_path = os.path.join(input_folder, filename)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
+            file_path = os.path.join(input_folder, filename)
+            if os.path.isfile(file_path) and filename != combined_csv_filename:
+                os.remove(file_path)
         print(f"Deleted all files except {combined_csv_filename}")
     except Exception as e:
-        print(f"Error combining and deleting files: {str(e)}")
+        raise Exception(f"Error combining and deleting files: {str(e)}")
+        
 
 def csv_name_change_logfile_delete(folder, new_name, confirm_logfile_delete="y"):
     """
@@ -190,23 +244,34 @@ def csv_name_change_logfile_delete(folder, new_name, confirm_logfile_delete="y")
 
     Returns:
         None
-    """
-    for filename in os.listdir(folder):
-        if filename.endswith(".csv"):
-            old_path = os.path.join(folder, filename)
-            new_path = os.path.join(folder, new_name)
-            os.rename(old_path, new_path)
-            print(f"Renamed {old_path} to {new_path}")
 
-    # Ask the user for confirmation before deleting files
-    if confirm_logfile_delete == "y":
+    Raises:
+        ValueError: Invalid confirmation input.
+
+    Example:
+        csv_name_change_logfile_delete("/path/to/csv/files", "new_name.csv", "y")
+    """
+    try:
         for filename in os.listdir(folder):
-            file_path = os.path.join(folder, filename)
-            if os.path.isfile(file_path) and filename != new_name:
-                os.remove(file_path)
-        print(f"Deleted all files except {new_name}")
-    else:
-        print("Files were not deleted.")
+            if filename.endswith(".csv"):
+                old_path = os.path.join(folder, filename)
+                new_path = os.path.join(folder, new_name)
+                os.rename(old_path, new_path)
+                print(f"Renamed {old_path} to {new_path}")
+
+        # Ask the user for confirmation before deleting files
+        if confirm_logfile_delete == "y":
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+                if os.path.isfile(file_path) and filename != new_name:
+                    os.remove(file_path)
+            print(f"Deleted all files except {new_name}")
+        elif confirm_logfile_delete == "n":
+            print("Files were not deleted.")
+        else:
+            raise ValueError("Invalid confirmation input. Use 'y' to confirm deletion or 'n' to skip.")
+    except Exception as e:
+        print(f"Error renaming and deleting files: {str(e)}")
 
 
 def main(input_directory, file_limit = 1):
