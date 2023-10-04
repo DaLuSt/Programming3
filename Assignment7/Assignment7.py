@@ -153,8 +153,7 @@ def save_dataframe_as_csv(dataframe, output_path):
         print(f"DataFrame saved as CSV to {output_path}")
     except Exception as e:
         print(f"Error saving DataFrame as CSV: {str(e)}")
-        
-        
+           
 def create_and_save_analysis_dataframes(articles_df):
     """
     Create and save analysis DataFrames based on the provided article DataFrame.
@@ -177,24 +176,20 @@ def create_and_save_analysis_dataframes(articles_df):
         author_counts = articles_df.groupBy("FirstAuthor").count().alias("ArticleCountPerAuthor")
         # Sort by count in descending order
         author_counts = author_counts.orderBy(F.desc("count"))
-
         # Calculate year-wise article counts
         year_counts = articles_df.groupBy("Year").count().alias("ArticleCountPerYear")
         # sort by year in ascending order
         year_counts = year_counts.orderBy(F.asc("Year"))
-
         # Calculate min, max, and average of AbstractLength column
         abstract_lengths = articles_df.agg(
             F.min(col("AbstractLength")).alias("MinAbstractLength"),
             F.max(col("AbstractLength")).alias("MaxAbstractLength"),
             F.avg(col("AbstractLength")).alias("AvgAbstractLength")
         )
-
         # Calculate journal and year-wise article counts
         journal_year_counts = articles_df.groupBy("JournalTitle", "Year").count().alias("ArticleCountPerJournalTitlePerYear")
         # Sort by count in descending order
         journal_year_counts = journal_year_counts.orderBy(F.desc("count"))
-
         # Save the DataFrames to CSV files
         save_dataframe_as_csv(author_counts, "output/author_counts")
         save_dataframe_as_csv(year_counts, "output/year_counts")
@@ -204,7 +199,6 @@ def create_and_save_analysis_dataframes(articles_df):
         print("Analysis DataFrames created and saved successfully.")
     except Exception as e:
         print(f"Error creating and saving analysis DataFrames: {str(e)}")
-
 
 def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
     """
@@ -228,10 +222,8 @@ def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
         if not csv_files:
             print("No CSV files found in the input folder.")
             return
-
         # Initialize an empty DataFrame to store the combined data
         combined_df = pd.DataFrame()
-
         # Iterate over each CSV file and concatenate them
         for csv_file in csv_files:
             csv_path = os.path.join(input_folder, csv_file)
@@ -240,11 +232,9 @@ def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
                 combined_df = pd.concat([combined_df, df], ignore_index=True)
             except pd.errors.ParserError:
                 print(f"Skipping file {csv_file} due to parsing error.")
-
         # Save the combined DataFrame to the output CSV file
         combined_df.to_csv(output_file, index=False)
         print(f"Combined data saved to {output_file}")
-
         # Delete all files in the folder except the combined CSV file
         for filename in os.listdir(input_folder):
             file_path = os.path.join(input_folder, filename)
@@ -277,7 +267,6 @@ def csv_name_change_logfile_delete(folder, new_name, confirm_logfile_delete="y")
                 new_path = os.path.join(folder, new_name)
                 os.rename(old_path, new_path)
                 print(f"Renamed {old_path} to {new_path}")
-
         # Ask the user for confirmation before deleting files
         if confirm_logfile_delete == "y":
             for filename in os.listdir(folder):
@@ -317,36 +306,27 @@ def main(input_directory, file_limit = 1):
         # create output folder if it does not exist
         if not os.path.exists("output"):
             os.makedirs("output")
-
         # Define folder paths and filenames
         parsed_data_folder = "output/parsed_data"
         output_file = os.path.join(parsed_data_folder, "combined_data.csv")
         combined_csv_filename = "combined_data.csv"
-
         # Initialize a Spark session
         spark = create_spark_session("PubMedXMLParser")
-
         # Create articles DataFrame
         articles_df = create_articles_dataframe(spark, input_directory, file_limit)
-
         # Save the entire DataFrame to a single CSV file
         save_dataframe_as_csv(articles_df, parsed_data_folder)
-
         # Create and save analysis DataFrames
         create_and_save_analysis_dataframes(articles_df)
-
         # Combine output CSV files and delete all files except the combined CSV file
         combine_and_delete_files(parsed_data_folder, output_file, combined_csv_filename)
-        
         # Rename the CSV files and delete all files except the renamed CSV files
         csv_name_change_logfile_delete("output/abstract_lengths", "abstract_lengths.csv", confirm_logfile_delete="y")
         csv_name_change_logfile_delete("output/author_counts", "author_counts.csv", confirm_logfile_delete="y")
         csv_name_change_logfile_delete("output/journal_year_counts", "journal_year_counts.csv", confirm_logfile_delete="y")
         csv_name_change_logfile_delete("output/year_counts", "year_counts.csv", confirm_logfile_delete="y")
-
         # Stop the Spark session
         spark.stop()
-        
         end_time = time.time()
         # time in hours, minutes and seconds
         print(f"time elapsed: {time.strftime('%H:%M:%S', time.gmtime(end_time - start_time))}")
