@@ -38,4 +38,10 @@ python3 Assignment7.py [file_limit] (file_limit is optional / default is 1)
 ```
 
 ### output
-Upon running the code, the script will generate two CSV files. The first CSV file will contain the parsed data from the PubMed XML files, while the second CSV file will contain the answers to the questions posed in this assignment. Both output files will be located in an "output" folder, which the script will create for your convenience.
+Upon running the code, the script will generate multiple CSV files. The first CSV file will contain the parsed data from the PubMed XML files, while the remaining CSV files will contain the answers to the questions posed in this assignment. All output files will be located in an "output" folder, which the script will create for your convenience.
+
+- parsed_data folder (combined_data.csv) : contains the parsed data from the PubMed XML files.
+- abstract_length folder (abstract_length.csv) : contains the answer to the question "What is the minimum, maximum, and average length of an abstract?" 
+- author_count folder (author_count.csv)  : contains the answer to the question "How many articles were published per author?"
+- journal_year_count folder (journal_year_count.csv) : contains the answer to the question "How many articles were published per journal per year?" 
+- year_count folder (year_count.csv) : contains the answer to the question "How many articles were published per year?" 
