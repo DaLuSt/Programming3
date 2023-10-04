@@ -1,5 +1,4 @@
-## Assignment 7: XML Parsing with PySpark and key information extraction from research articles.
-In the ever-expanding realm of bioinformatics and biomedical research, extracting information from vast repositories of scientific literature is a crucial task. Assignment 7 is set on an exciting journey into the world of data science and natural language processing. The objective being to use PySpark to parse PubMed XML files and extract key information from research articles. 
+## Assignment 7: XML Parsing with PySpark and key information extraction from research articles. 
 
 ### Introduction
 Scientific literature, especially in the domain of molecular biology and biochemistry, is a goldmine of knowledge. PubMed, as one of the largest repositories of biomedical literature, offers a treasure trove of research articles. However, making sense of this wealth of information can be daunting. This assignment addresses this challenge by developing a script capable of processing PubMed XML files and organizing the data into a PySpark dataframe.
