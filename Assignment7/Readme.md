@@ -29,9 +29,24 @@ To successfully complete this assignment, this script should be able to take one
 - Extract and organize the specified information from the articles.
 - Create a secondary dataframe to answer the provided questions.
 
-
 ### Run code
-To execute the script, navigate to your terminal and use the following command:
+Clone the repository to your local machine using the following command:
+
+```
+git clone https://github.com/DaLuSt/Programming3.git
+```
+
+Navigate to the Assignment7 folder:
+```
+cd ../Programming3/Assignment7
+```
+
+install the required packages using the following command:
+```
+pip install -r requirements.txt
+```
+
+To execute the python script, navigate to your terminal and use the following command:
 
 ```
 python3 Assignment7.py [file_limit] (file_limit is optional / default is 1)
