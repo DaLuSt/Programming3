@@ -164,6 +164,8 @@ def create_and_save_analysis_dataframes(articles_df):
 
         # Calculate year-wise article counts
         year_counts = articles_df.groupBy("Year").count().alias("ArticleCountPerYear")
+        # sort by year in ascending order
+        year_counts = year_counts.orderBy(F.asc("Year"))
 
         # Calculate min, max, and average of AbstractLength column
         abstract_lengths = articles_df.agg(
