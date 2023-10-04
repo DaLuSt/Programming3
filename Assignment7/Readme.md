@@ -41,7 +41,7 @@ Navigate to the Assignment7 folder:
 cd ../Programming3/Assignment7
 ```
 
-install the required packages using the following command:
+Install the required packages using the following command:
 ```
 pip install -r requirements.txt
 ```
@@ -52,7 +52,7 @@ To execute the python script, navigate to your terminal and use the following co
 python3 Assignment7.py [file_limit] (file_limit is optional / default is 1)
 ```
 
-### output
+### output[https://github.com/DaLuSt/Programming3/tree/main/Assignment7/output]
 Upon running the code, the script will generate multiple CSV files. The first CSV file will contain the parsed data from the PubMed XML files, while the remaining CSV files will contain the answers to the questions posed in this assignment. All output files will be located in an "output" folder, which the script will create for your convenience.
 
 - parsed_data folder (combined_data.csv) : contains the parsed data from the PubMed XML files.
