@@ -2,18 +2,19 @@
 """
 Title: Replacement Assignment XML parser
 Author: Daan Steur
-Date: 05/10/2023
-Description: This script parses a PubMed XML file using PySpark and processes the data to obtain key information from research articles.
+Date: 04/10/2023
+Description: This script parses a PubMed XML file using PySpark 
+and processes the data to obtain key information from research articles.
 Usage: python3 Assignment7.py [file_limit] (file_limit is optional / default is 1)
 """
 
 import os
 import sys
 import time
-import pandas as pd
 import xml.etree.ElementTree as ET
+import pandas as pd
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, min, max, avg
+from pyspark.sql.functions import col #, min, max, avg
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
@@ -58,7 +59,7 @@ def create_articles_dataframe(spark, input_directory, file_limit=1):
         file_limit (int, optional): Limit for the number of files to process (default is None).
 
     Returns:
-        DataFrame: A PySpark DataFrame containing article data, or None if an error occurs.
+        DataFrame: A PySpark DataFrame containing article data.
 
     Raises:
         Exception: An error occurred during DataFrame creation.
@@ -100,7 +101,7 @@ def create_articles_dataframe(spark, input_directory, file_limit=1):
                     title = article.find(".//ArticleTitle")
                     journal_title = article.find(".//Journal/Title")
                     abstract = article.find(".//Abstract/AbstractText")
-                    
+                    # unknown values are replaced with "Unknown"
                     pubmed_id_text = pubmed_id.text if pubmed_id is not None else "Unknown"
                     first_author_text = first_author.text if first_author is not None else "Unknown"
                     last_author_text = last_author.text if last_author is not None else "Unknown"
@@ -108,15 +109,12 @@ def create_articles_dataframe(spark, input_directory, file_limit=1):
                     title_text = title.text if title is not None else "Unknown"
                     journal_title_text = journal_title.text if journal_title is not None else "Unknown"
                     abstract_text = abstract.text if abstract is not None else ""
-                    
                     # Calculate abstract length
                     abstract_length = len(abstract_text)
-
+                    # Get a list of references
                     references = [ref.text for ref in article.findall(".//PubmedData/ReferenceList/Reference/ArticleIdList/ArticleId[@IdType='pubmed']")]
-
                     # Append data excluding "AbstractText" to the DataFrame
                     article_data.append((pubmed_id_text, first_author_text, last_author_text, pub_year_text, title_text, journal_title_text, abstract_length, references))
-
                 articles_df = articles_df.union(
                     spark.createDataFrame(article_data, schema=schema)
                 )
@@ -132,6 +130,24 @@ def create_articles_dataframe(spark, input_directory, file_limit=1):
         return None
 
 def save_dataframe_as_csv(dataframe, output_path):
+    """
+    Save a PySpark DataFrame as a CSV file. 
+    This function takes a PySpark DataFrame and writes it as a CSV file at the specified output path.
+    The function allows overwriting the file if it already exists and includes column headers in the CSV file.
+
+    Args:
+        dataframe (DataFrame): The PySpark DataFrame to be saved as a CSV file.
+        output_path (str): The path where the CSV file will be saved.
+
+    Returns:
+       A CSV file containing the data from the xml parsed spark DataFrame.
+
+    Raises:
+        Exception: An error occurred during the saving process.
+
+    Example:
+        save_dataframe_as_csv(my_dataframe, "/path/to/output.csv")
+    """
     try:
         dataframe.write.csv(output_path, mode="overwrite", header=True)
         print(f"DataFrame saved as CSV to {output_path}")
@@ -203,7 +219,7 @@ def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
         Exception: An error occurred during file processing.
 
     Example:
-        >>> combine_and_delete_files("/path/to/csv/files", "output/combined_data.csv", "combined_data.csv")
+        combine_and_delete_files("/path/to/csv/files", "output/combined_data.csv", "combined_data.csv")
     """
     try:
         # Get a list of all CSV files in the input folder
@@ -240,16 +256,13 @@ def combine_and_delete_files(input_folder, output_file, combined_csv_filename):
 
 def csv_name_change_logfile_delete(folder, new_name, confirm_logfile_delete="y"):
     """
-    Rename CSV files in the specified folder to the new name and optionally delete other files.
+    Rename CSV files in the specified folder to the new name and optionally delete log and other files.
 
     Args:
         folder (str): The path to the folder containing CSV files.
         new_name (str): The new name to assign to CSV files.
         confirm_logfile_delete (str, optional): A confirmation prompt for deleting other files.
             Defaults to "y". Set to "n" to skip deletion.
-
-    Returns:
-        None
 
     Raises:
         ValueError: Invalid confirmation input.
@@ -281,6 +294,24 @@ def csv_name_change_logfile_delete(folder, new_name, confirm_logfile_delete="y")
 
 
 def main(input_directory, file_limit = 1):
+    """
+    Process PubMed XML files and perform data analysis.
+
+    Args:
+        input_directory (str): Path to the directory containing PubMed XML files.
+        file_limit (int, optional): Limit for the number of files to process (default is 1).
+
+    Returns:
+        csv with parsed data, csv with author counts, csv with year counts,
+        csv with abstract lengths, csv with journal and year-wise article counts
+        Runtime of the script
+
+    Raises:
+        Exception: An error occurred during the execution of any step.
+
+    Example:
+        main("/path/to/xml/files", file_limit=10)
+    """
     try:
         start_time = time.time()
         # create output folder if it does not exist
@@ -306,7 +337,6 @@ def main(input_directory, file_limit = 1):
 
         # Combine output CSV files and delete all files except the combined CSV file
         combine_and_delete_files(parsed_data_folder, output_file, combined_csv_filename)
-        print(f"Combined data saved to {output_file}.")
         
         # Rename the CSV files and delete all files except the renamed CSV files
         csv_name_change_logfile_delete("output/abstract_lengths", "abstract_lengths.csv", confirm_logfile_delete="y")
@@ -332,9 +362,7 @@ if __name__ == "__main__":
             print("Invalid file limit. Please provide an integer.")
             sys.exit(1)
     else:
-        # If no file limit is provided, set it to 1 as the default value
         file_limit = 1
-    # print number of xml files that is about to be parsed
-    print(f"Number of files to be parsed: {file_limit}")
 
-    main("/data/datasets/NCBI/PubMed/", file_limit) 
+    print(f"Number of files to be parsed: {file_limit}")
+    main("/data/datasets/NCBI/PubMed/", file_limit)
